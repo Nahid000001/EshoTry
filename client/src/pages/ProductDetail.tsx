@@ -455,6 +455,38 @@ export default function ProductDetail() {
           </div>
         )}
       </div>
+
+      {/* Virtual Try-On Section */}
+      {showVirtualTryOn && isAuthenticated && (
+        <div className="mt-8">
+          <VirtualTryOn
+            productId={product.id}
+            productImage={product.imageUrl || ''}
+            garmentType={getGarmentType(product.categoryId)}
+          />
+        </div>
+      )}
+
+      {/* AI Recommendations */}
+      <div className="mt-8">
+        <RecommendationSection
+          type="similar"
+          productId={product.id}
+          title="You Might Also Like"
+          limit={4}
+        />
+      </div>
     </div>
   );
+}
+
+function getGarmentType(categoryId: number | null): 'top' | 'bottom' | 'dress' | 'shoes' | 'accessories' {
+  switch (categoryId) {
+    case 1: return 'top';      // Tops
+    case 2: return 'bottom';   // Bottoms
+    case 3: return 'dress';    // Dresses
+    case 4: return 'top';      // Outerwear (treated as top)
+    case 5: return 'accessories'; // Accessories
+    default: return 'top';
+  }
 }

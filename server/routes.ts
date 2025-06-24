@@ -11,6 +11,8 @@ import {
   insertWishlistSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import { recommendationEngine } from "./ai/recommendation-engine";
+import { virtualTryOnEngine } from "./ai/virtual-tryon";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -273,6 +275,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error removing from wishlist:", error);
       res.status(500).json({ message: "Failed to remove from wishlist" });
+    }
+  });
+
+  // AI Recommendation routes
+  app.get("/api/recommendations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      const recommendations = await recommendationEngine.getRecommendations(userId, limit);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error getting recommendations:", error);
+      res.status(500).json({ message: "Failed to get recommendations" });
+    }
+  });
+
+  app.get("/api/products/:id/similar", async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      const limit = parseInt(req.query.limit as string) || 4;
+      
+      const similarProducts = await recommendationEngine.getSimilarProducts(productId, limit);
+      res.json(similarProducts);
+    } catch (error) {
+      console.error("Error getting similar products:", error);
+      res.status(500).json({ message: "Failed to get similar products" });
+    }
+  });
+
+  app.post("/api/user-interaction", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { type, productId, duration, rating } = req.body;
+      
+      await recommendationEngine.updateUserProfile(userId, {
+        type,
+        productId: parseInt(productId),
+        duration,
+        rating
+      });
+      
+      res.json({ message: "User interaction recorded" });
+    } catch (error) {
+      console.error("Error recording user interaction:", error);
+      res.status(500).json({ message: "Failed to record interaction" });
+    }
+  });
+
+  // Virtual Try-On routes
+  app.post("/api/virtual-tryon", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { userImage, garmentImage, garmentType } = req.body;
+      
+      const result = await virtualTryOnEngine.processVirtualTryOn({
+        userId,
+        userImage,
+        garmentImage,
+        garmentType
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error processing virtual try-on:", error);
+      res.status(500).json({ message: "Failed to process virtual try-on" });
+    }
+  });
+
+  app.get("/api/size-recommendation/:productId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const productId = parseInt(req.params.productId);
+      
+      const recommendation = await virtualTryOnEngine.getSizeRecommendation(userId, productId);
+      res.json(recommendation);
+    } catch (error) {
+      console.error("Error getting size recommendation:", error);
+      res.status(500).json({ message: "Failed to get size recommendation" });
+    }
+  });
+
+  app.post("/api/body-measurements", isAuthenticated, async (req: any, res) => {
+    try {
+      const { imageData } = req.body;
+      
+      if (!imageData) {
+        return res.status(400).json({ message: "Image data is required" });
+      }
+      
+      const imageBuffer = Buffer.from(imageData.split(',')[1], 'base64');
+      const result = await virtualTryOnEngine.processBodyMeasurements(imageBuffer);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error processing body measurements:", error);
+      res.status(500).json({ message: "Failed to process body measurements" });
     }
   });
 

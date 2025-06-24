@@ -134,7 +134,10 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(products.isFeatured, true));
     }
 
-    query = query.where(and(...conditions));
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
     query = query.orderBy(desc(products.createdAt));
 
     if (filters.limit) {
@@ -145,7 +148,7 @@ export class DatabaseStorage implements IStorage {
       query = query.offset(filters.offset);
     }
 
-    return await query;
+    return await query.execute();
   }
 
   async getProductById(id: number): Promise<Product | undefined> {
@@ -169,10 +172,10 @@ export class DatabaseStorage implements IStorage {
     return newProduct;
   }
 
-  async updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product> {
+  async updateProduct(id: number, productData: Partial<InsertProduct>): Promise<Product> {
     const [updatedProduct] = await db
       .update(products)
-      .set({ ...product, updatedAt: new Date() })
+      .set({ ...productData, updatedAt: new Date() })
       .where(eq(products.id, id))
       .returning();
     return updatedProduct;
