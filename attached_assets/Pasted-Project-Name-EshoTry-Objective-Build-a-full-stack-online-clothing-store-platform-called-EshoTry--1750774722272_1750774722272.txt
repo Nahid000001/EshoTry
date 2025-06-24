@@ -1,0 +1,120 @@
+Project Name: EshoTry
+
+Objective:
+Build a full-stack online clothing store platform called EshoTry, focused on improving online shopping with AI-powered personalized recommendations and virtual try-on technology.
+
+Tech Stack & Architecture
+Frontend: React.js (responsive PWA for web and mobile)
+
+Backend: Django REST API (Python)
+
+AI Components:
+
+TensorFlow for AI recommendation engine
+
+MediaPipe & Computer Vision for virtual try-on
+
+Database Layer:
+
+PostgreSQL for structured data (users, orders)
+
+MongoDB for flexible product metadata & preferences
+
+Redis for session/cache optimization
+
+Elasticsearch for product search
+
+External Services:
+
+Stripe & PayPal for secure payments
+
+AWS S3 for product images and user-uploaded content
+
+OAuth2.0 for social login
+
+Security:
+
+GDPR-compliant data handling
+
+bcrypt password hashing
+
+TLS 1.3 encryption
+
+OWASP security standards applied
+
+Key Features to Implement
+✅ User Management
+
+Email, social, and guest account registration
+
+Secure login (OAuth2.0 & JWT)
+
+Style profile questionnaire during registration
+
+Avatar creation using user measurements
+
+Optional photo-based try-on with privacy-first auto-deletion
+
+✅ AI Recommendation System
+
+Personalized product recommendations based on style & behavior
+
+Outfit combination suggestions (tops, bottoms, accessories)
+
+Continuous learning to improve accuracy over time
+
+Target: 85% recommendation relevance
+
+✅ Virtual Try-On Module
+
+Avatar-based try-on with user-provided measurements
+
+Secure photo upload try-on
+
+Realistic garment visualization with different size options
+
+Target: 4/5 average visual accuracy rating
+
+✅ E-Commerce Core
+
+Product catalogue with search/filter (Elasticsearch)
+
+Shopping cart & secure checkout
+
+Real-time inventory management
+
+Payment integration (Stripe, PayPal)
+
+✅ Retailer Analytics Dashboard
+
+View try-on activity, conversion rates, product performance
+
+Return rate comparison pre/post virtual try-on
+
+Non-Functional Requirements
+Support at least 10,000 concurrent users
+
+Web page load time: under 2 seconds
+
+API response time: under 500ms (95% of requests)
+
+Virtual try-on render time: under 3 seconds
+
+Development Phases
+Sprint 1: Requirements finalization, system architecture, wireframes
+Sprint 2: Backend development, AI engine integration
+Sprint 3: Virtual try-on module, frontend integration
+Sprint 4: Testing (performance, security, usability), deployment
+
+Important Notes
+Use pre-trained AI models where applicable
+
+Prioritize mobile-first design and responsive UI
+
+Implement privacy safeguards for try-on features
+
+Role-based access for admin & retailers
+
+Follow WCAG 2.1 accessibility standards
+
+Use GitHub Actions for CI/CD
