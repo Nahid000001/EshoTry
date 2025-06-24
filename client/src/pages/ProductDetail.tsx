@@ -34,7 +34,7 @@ export default function ProductDetail() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   
   const { addToCart, isAddingToCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
 
   const { data: product, isLoading, error } = useQuery<Product>({
@@ -463,6 +463,16 @@ export default function ProductDetail() {
             productId={product.id}
             productImage={product.imageUrl || ''}
             garmentType={getGarmentType(product.categoryId)}
+          />
+        </div>
+      )}
+
+      {/* Complete Outfit Recommendations */}
+      {isAuthenticated && (
+        <div className="mt-8">
+          <OutfitRecommendations 
+            baseProductId={product.id}
+            userId={user?.id}
           />
         </div>
       )}

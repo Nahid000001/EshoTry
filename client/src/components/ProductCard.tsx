@@ -11,9 +11,10 @@ import { Heart, Star, Camera } from "lucide-react";
 
 interface ProductCardProps {
   product: Product;
+  compact?: boolean;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, compact = false }: ProductCardProps) {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const { addToCart, isAddingToCart } = useCart();
   const { isAuthenticated } = useAuth();

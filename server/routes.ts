@@ -375,6 +375,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Outfit Recommendations
+  app.get("/api/outfit-recommendations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const productId = req.query.productId ? parseInt(req.query.productId as string) : null;
+      
+      // Generate outfit recommendations based on user preferences and selected product
+      const outfits = await generateOutfitRecommendations(userId, productId);
+      res.json(outfits);
+    } catch (error) {
+      console.error("Error getting outfit recommendations:", error);
+      res.status(500).json({ message: "Failed to get outfit recommendations" });
+    }
+  });
+
+  // Admin Dashboard Routes
+  app.get("/api/admin/analytics", isAuthenticated, async (req: any, res) => {
+    try {
+      // In a real implementation, this would query actual analytics data
+      const analytics = {
+        totalUsers: 1247,
+        activeUsers: 342,
+        totalOrders: 156,
+        revenue: 23456.78,
+        tryOnSessions: 89,
+        recommendationClicks: 445,
+        avgSessionTime: 8.5,
+        conversionRate: 12.5,
+        userGrowth: [
+          { month: 'Jan', users: 120 },
+          { month: 'Feb', users: 180 },
+          { month: 'Mar', users: 240 },
+          { month: 'Apr', users: 320 },
+          { month: 'May', users: 400 },
+          { month: 'Jun', users: 520 }
+        ],
+        aiPerformance: [
+          { metric: 'Recommendation Accuracy', value: 94 },
+          { metric: 'Size Prediction Accuracy', value: 89 },
+          { metric: 'Try-On Satisfaction', value: 87 },
+          { metric: 'Outfit Match Score', value: 92 }
+        ],
+        categoryBreakdown: [
+          { name: 'Tops', value: 35, color: '#8884d8' },
+          { name: 'Bottoms', value: 25, color: '#82ca9d' },
+          { name: 'Dresses', value: 20, color: '#ffc658' },
+          { name: 'Outerwear', value: 12, color: '#ff7300' },
+          { name: 'Accessories', value: 8, color: '#0088fe' }
+        ]
+      };
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error getting analytics:", error);
+      res.status(500).json({ message: "Failed to get analytics" });
+    }
+  });
+
+  app.get("/api/admin/product-performance", isAuthenticated, async (req: any, res) => {
+    try {
+      // In a real implementation, this would aggregate actual product performance data
+      const products = [
+        { id: 1, name: 'Classic White T-Shirt', views: 1234, sales: 89, tryOns: 45, rating: 4.5, revenue: 2667.11 },
+        { id: 2, name: 'Blue Denim Jeans', views: 987, sales: 67, tryOns: 38, rating: 4.3, revenue: 4019.33 },
+        { id: 3, name: 'Summer Floral Dress', views: 856, sales: 52, tryOns: 29, rating: 4.7, revenue: 3639.48 },
+        { id: 4, name: 'Leather Jacket', views: 654, sales: 23, tryOns: 18, rating: 4.8, revenue: 3449.77 },
+        { id: 5, name: 'Designer Handbag', views: 543, sales: 34, tryOns: 12, rating: 4.6, revenue: 4078.66 }
+      ];
+      res.json(products);
+    } catch (error) {
+      console.error("Error getting product performance:", error);
+      res.status(500).json({ message: "Failed to get product performance" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
+
+async function generateOutfitRecommendations(userId: string, baseProductId?: number | null) {
+  try {
+    const allProducts = await storage.getProducts();
+    
+    // Group products by category
+    const productsByCategory = allProducts.reduce((acc, product) => {
+      const category = product.categoryId || 0;
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(product);
+      return acc;
+    }, {} as Record<number, typeof allProducts>);
+
+    const outfits = [];
+
+    // Generate casual outfit
+    const casualOutfit = {
+      id: 'casual-1',
+      name: 'Casual Day Out',
+      products: {
+        top: productsByCategory[1]?.[0], // Tops
+        bottom: productsByCategory[2]?.[0], // Bottoms
+        accessories: productsByCategory[5]?.slice(0, 2) || [] // Accessories
+      },
+      compatibility: 0.92,
+      occasion: 'Casual',
+      style: 'Relaxed'
+    };
+
+    // Generate smart casual outfit
+    const smartOutfit = {
+      id: 'smart-1',
+      name: 'Smart Casual',
+      products: {
+        top: productsByCategory[1]?.[1], // Different top
+        bottom: productsByCategory[2]?.[1], // Different bottom
+        accessories: productsByCategory[5]?.slice(0, 1) || []
+      },
+      compatibility: 0.88,
+      occasion: 'Work',
+      style: 'Professional'
+    };
+
+    outfits.push(casualOutfit, smartOutfit);
+
+    // If there's a dress category, add a dress outfit
+    if (productsByCategory[3]?.length > 0) {
+      const dressOutfit = {
+        id: 'dress-1',
+        name: 'Elegant Evening',
+        products: {
+          top: productsByCategory[3][0], // Dress as "top"
+          accessories: productsByCategory[5]?.slice(0, 2) || []
+        },
+        compatibility: 0.95,
+        occasion: 'Evening',
+        style: 'Elegant'
+      };
+      outfits.push(dressOutfit);
+    }
+
+    return outfits;
+  } catch (error) {
+    console.error('Error generating outfit recommendations:', error);
+    return [];
+  }
+}
 }

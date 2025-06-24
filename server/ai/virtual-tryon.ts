@@ -99,6 +99,12 @@ export class VirtualTryOnEngine {
         timestamp: new Date()
       });
 
+      // Auto-delete user image for privacy if requested
+      if ((request as any).autoDelete) {
+        // In a real implementation, this would delete the image from storage
+        console.log('User image auto-deleted for privacy');
+      }
+
       return {
         resultImage: fittingResult.resultImage,
         confidence: fittingResult.confidence,

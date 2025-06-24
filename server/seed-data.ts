@@ -162,7 +162,41 @@ export async function seedDatabase() {
     }
 
     console.log('Database seeding completed successfully');
+    
+    // Initialize AI with sample user interactions for demo
+    await initializeDemoAI();
   } catch (error) {
     console.error('Error seeding database:', error);
+  }
+}
+
+async function initializeDemoAI() {
+  try {
+    const { recommendationEngine } = await import('./ai/recommendation-engine');
+    
+    // Simulate user interactions for AI learning
+    const demoInteractions = [
+      { userId: 'demo-user-1', productId: 1, type: 'view', duration: 45000 },
+      { userId: 'demo-user-1', productId: 2, type: 'view', duration: 30000 },
+      { userId: 'demo-user-1', productId: 3, type: 'purchase', rating: 5 },
+      { userId: 'demo-user-1', productId: 4, type: 'view', duration: 60000 },
+      { userId: 'demo-user-1', productId: 1, type: 'cart' },
+      { userId: 'demo-user-2', productId: 2, type: 'purchase', rating: 4 },
+      { userId: 'demo-user-2', productId: 5, type: 'view', duration: 25000 },
+      { userId: 'demo-user-2', productId: 3, type: 'wishlist' },
+    ];
+
+    for (const interaction of demoInteractions) {
+      await recommendationEngine.updateUserProfile(interaction.userId, {
+        type: interaction.type as any,
+        productId: interaction.productId,
+        duration: interaction.duration,
+        rating: interaction.rating
+      });
+    }
+
+    console.log('Demo AI data initialized successfully');
+  } catch (error) {
+    console.error('Error initializing demo AI:', error);
   }
 }
