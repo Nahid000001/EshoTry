@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { VoiceInput } from '@/components/VoiceInput';
 import { ImageUpload } from '@/components/ImageUpload';
+import { MoodBoardWidget } from '@/components/MoodBoardWidget';
 import { 
   MessageCircle, 
   X, 
@@ -53,6 +54,7 @@ export function Chatbot({ className }: ChatbotProps) {
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [showMoodBoard, setShowMoodBoard] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -153,6 +155,12 @@ export function Chatbot({ className }: ChatbotProps) {
   };
 
   const handleQuickReply = (reply: string) => {
+    // Handle special quick replies
+    if (reply.toLowerCase().includes('mood board') || reply.includes('মুড বোর্ড')) {
+      setShowMoodBoard(true);
+      return;
+    }
+    
     sendMessage(reply);
   };
 
@@ -310,14 +318,16 @@ export function Chatbot({ className }: ChatbotProps) {
       return [
         "এআই বৈশিষ্ট্য দেখুন",
         "পণ্য খুঁজতে সাহায্য",
-        "ভার্চুয়াল ট্রাই-অন সাহায্য"
+        "ভার্চুয়াল ট্রাই-অন সাহায্য",
+        "মুড বোর্ড তৈরি"
       ];
     }
     
     return [
       "Show me AI features",
       "Help me find products", 
-      "Virtual try-on help"
+      "Virtual try-on help",
+      "Create mood board"
     ];
   };
 
@@ -432,6 +442,19 @@ export function Chatbot({ className }: ChatbotProps) {
         return <div key={index}>{line}</div>;
       });
   };
+
+  if (showMoodBoard) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="max-h-[90vh] overflow-y-auto">
+          <MoodBoardWidget
+            onClose={() => setShowMoodBoard(false)}
+            language={language}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (!isOpen) {
     return (

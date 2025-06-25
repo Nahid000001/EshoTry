@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import { eshoTryChatbot } from '../ai/chatbot-engine';
+import { trendAnalysisEngine } from '../ai/trend-analysis-engine';
+import { moodBoardEngine } from '../ai/mood-board-engine';
+import { sustainabilityEngine } from '../ai/sustainability-engine';
 import { storage } from '../storage';
 import { isAuthenticated } from '../replitAuth';
 
@@ -380,6 +383,99 @@ router.post('/proactive-suggestion', async (req, res) => {
   }
 });
 
+// Trend analysis endpoint
+router.get('/trends', async (req, res) => {
+  try {
+    const trends = await trendAnalysisEngine.getTrendingStyles();
+    const seasonal = await trendAnalysisEngine.getSeasonalRecommendations();
+    const inventory = await trendAnalysisEngine.generateInventoryRecommendations();
+
+    res.json({
+      trendingStyles: trends,
+      seasonalRecommendations: seasonal,
+      inventoryInsights: inventory,
+      lastUpdated: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Trends endpoint error:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Mood board endpoint
+router.post('/mood-board', async (req, res) => {
+  try {
+    const { themeId, customizations } = req.body;
+    
+    if (!themeId) {
+      const themes = await moodBoardEngine.getAvailableThemes();
+      return res.json({ themes });
+    }
+
+    let moodBoard;
+    if (customizations) {
+      moodBoard = await moodBoardEngine.customizeMoodBoard(themeId, customizations);
+    } else {
+      moodBoard = await moodBoardEngine.generateMoodBoard(themeId);
+    }
+
+    res.json(moodBoard);
+
+  } catch (error) {
+    console.error('Mood board endpoint error:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Sustainability endpoint
+router.get('/sustainability', async (req, res) => {
+  try {
+    const { productIds } = req.query;
+    
+    if (productIds) {
+      // Analyze specific products
+      const ids = Array.isArray(productIds) ? productIds : [productIds];
+      const products = await Promise.all(
+        ids.map(async (id: any) => {
+          const product = await storage.getProductById(parseInt(id));
+          if (product) {
+            const sustainability = await sustainabilityEngine.analyzeSustainability(product);
+            return { product, sustainability };
+          }
+          return null;
+        })
+      );
+      
+      res.json({
+        productAnalysis: products.filter(Boolean)
+      });
+    } else {
+      // Get eco-friendly products
+      const ecoProducts = await sustainabilityEngine.getEcoFriendlyProducts(20);
+      
+      res.json({
+        ecoFriendlyProducts: ecoProducts,
+        sustainabilityInfo: {
+          criteriaExplanation: 'Products rated based on materials, sourcing, and environmental impact',
+          certifications: ['GOTS Certified', 'Fair Trade', 'Organic', 'Recycled Materials'],
+          impactAreas: ['Materials', 'Sourcing', 'Environmental Impact']
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('Sustainability endpoint error:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
 // Get chatbot status and capabilities
 router.get('/status', async (req, res) => {
   try {
@@ -397,7 +493,10 @@ router.get('/status', async (req, res) => {
         multilingualSupport: true,
         sessionMemory: true,
         proactiveSuggestions: true,
-        voiceInput: true
+        voiceInput: true,
+        trendAnalysis: true,
+        moodBoard: true,
+        sustainability: true
       },
       features: [
         'Multilingual support (English, Bangla)',
@@ -410,7 +509,10 @@ router.get('/status', async (req, res) => {
         'AI features guidance',
         'Order tracking (authenticated users)',
         'Size and fit assistance',
-        'Fashion styling advice'
+        'Fashion styling advice',
+        'Real-time trend analysis and forecasting',
+        'Visual mood board creation with AI curation',
+        'Sustainability scoring and eco-conscious recommendations'
       ],
       languages: ['en', 'bn'],
       activeSessions: chatSessions.size,

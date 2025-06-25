@@ -3,6 +3,9 @@ import { storage } from '../storage';
 import { Product, User } from '@shared/schema';
 import { visualSearchEngine } from './visual-search-engine';
 import { personalizationEngine } from './personalization-engine';
+import { trendAnalysisEngine } from './trend-analysis-engine';
+import { moodBoardEngine } from './mood-board-engine';
+import { sustainabilityEngine } from './sustainability-engine';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -365,6 +368,15 @@ Remember: You have access to live product data, stock levels, and user order inf
         case 'visual_search':
           response = await this.handleVisualSearch(message, context, entities);
           break;
+        case 'trend_analysis':
+          response = await this.handleTrendAnalysis(message, context, entities);
+          break;
+        case 'mood_board':
+          response = await this.handleMoodBoard(message, context, entities);
+          break;
+        case 'sustainability':
+          response = await this.handleSustainability(message, context, entities);
+          break;
         default:
           response = await this.handleGeneralQuery(message, context);
       }
@@ -463,11 +475,23 @@ Remember: You have access to live product data, stock levels, and user order inf
       visual_search: [
         'upload', 'photo', 'image', 'picture', 'similar', 'find like this',
         'visual search', 'image search', 'looks like'
+      ],
+      trend_analysis: [
+        'trending', 'trends', 'popular', 'fashionable', 'latest', 'seasonal',
+        'what\'s hot', 'current styles', 'fashion forecast'
+      ],
+      mood_board: [
+        'mood board', 'style theme', 'outfit ideas', 'look book', 'style inspiration',
+        'theme', 'aesthetic', 'vibe', 'style guide'
+      ],
+      sustainability: [
+        'eco', 'sustainable', 'green', 'ethical', 'organic', 'eco-friendly',
+        'environmentally friendly', 'conscious fashion', 'fair trade'
       ]
     };
 
     // Check for intent patterns with priority
-    const intentOrder = ['virtual_tryon_help', 'size_help', 'order_tracking', 'ai_features_help', 'visual_search', 'product_inquiry', 'general_fashion_advice'];
+    const intentOrder = ['virtual_tryon_help', 'size_help', 'order_tracking', 'ai_features_help', 'visual_search', 'trend_analysis', 'mood_board', 'sustainability', 'product_inquiry', 'general_fashion_advice'];
     
     for (const intent of intentOrder) {
       const keywords = intents[intent as keyof typeof intents];
@@ -1333,6 +1357,21 @@ Remember: You have access to live product data, stock levels, and user order inf
         "Upload image",
         "Camera search",
         "Search tips"
+      ],
+      'trend_analysis': [
+        "Current trends",
+        "Seasonal styles",
+        "Popular items"
+      ],
+      'mood_board': [
+        "Create mood board",
+        "Style themes",
+        "Outfit inspiration"
+      ],
+      'sustainability': [
+        "Eco-friendly options",
+        "Sustainable brands",
+        "Green alternatives"
       ],
       'general_query': [
         "AI features",
