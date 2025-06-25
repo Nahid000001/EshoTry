@@ -15,6 +15,16 @@ interface ChatContext {
   userProfile?: User;
   currentIntent?: string;
   extractedEntities?: Record<string, any>;
+  language?: string;
+  sessionMemory?: SessionMemory;
+}
+
+interface SessionMemory {
+  recentSearches: string[];
+  viewedProducts: Product[];
+  preferredCategories: string[];
+  lastActivity: Date;
+  userPreferences: Record<string, any>;
 }
 
 interface ChatbotResponse {
@@ -25,12 +35,16 @@ interface ChatbotResponse {
   suggestedQueries?: string[];
   productRecommendations?: Product[];
   requiresEscalation?: boolean;
+  language?: string;
+  proactivePrompt?: boolean;
 }
 
 export class EshoTryAIChatbot {
   private openai: OpenAI;
   private systemPrompt: string;
   private knowledgeBase: Map<string, any> = new Map();
+  private translations: Map<string, Record<string, string>> = new Map();
+  private sessionMemories: Map<string, SessionMemory> = new Map();
 
   constructor() {
     if (!process.env.OPENAI_API_KEY) {
@@ -43,6 +57,7 @@ export class EshoTryAIChatbot {
 
     this.systemPrompt = this.buildSystemPrompt();
     this.initializeKnowledgeBase();
+    this.initializeTranslations();
   }
 
   private buildSystemPrompt(): string {
@@ -125,14 +140,191 @@ Remember: You have access to live product data, stock levels, and user order inf
     });
   }
 
+  private initializeTranslations() {
+    // English translations (base)
+    this.translations.set('en', {
+      welcome: 'Hi! I\'m EshoBot, your AI fashion assistant.',
+      help_intro: 'I can help you with:',
+      product_search: 'Product search and recommendations',
+      virtual_tryon: 'Virtual Try-On and AI features',
+      size_help: 'Sizing and fit guidance',
+      order_tracking: 'Order tracking',
+      fashion_advice: 'Fashion advice and styling',
+      what_help: 'What can I help you with today?',
+      found_products: 'Found {count} matching product{s}:',
+      in_stock: 'in stock',
+      out_of_stock: 'Out of stock',
+      available_purchase: 'available for immediate purchase',
+      try_virtual: 'Want to see how any of these look on you? Try our Virtual Try-On feature!',
+      no_products: 'I couldn\'t find any products matching your request.',
+      browse_categories: 'Browse categories',
+      show_featured: 'Show featured items',
+      contact_support: 'Contact support',
+      language_changed: 'Language changed to English',
+      session_memory_note: 'I remember our previous conversation.',
+      proactive_suggestion: 'While you\'re here, you might like these trending items:',
+      voice_ready: 'Voice input ready - speak your question!'
+    });
+
+    // Bangla translations
+    this.translations.set('bn', {
+      welcome: 'হ্যালো! আমি এশোবট, আপনার এআই ফ্যাশন সহায়ক।',
+      help_intro: 'আমি আপনাকে সাহায্য করতে পারি:',
+      product_search: 'পণ্য অনুসন্ধান এবং সুপারিশ',
+      virtual_tryon: 'ভার্চুয়াল ট্রাই-অন এবং এআই বৈশিষ্ট্য',
+      size_help: 'সাইজ এবং ফিট গাইড',
+      order_tracking: 'অর্ডার ট্র্যাকিং',
+      fashion_advice: 'ফ্যাশন পরামর্শ এবং স্টাইলিং',
+      what_help: 'আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি?',
+      found_products: '{count}টি মিলে যাওয়া পণ্য পাওয়া গেছে:',
+      in_stock: 'স্টকে আছে',
+      out_of_stock: 'স্টকে নেই',
+      available_purchase: 'তাৎক্ষণিক কেনাকাটার জন্য উপলব্ধ',
+      try_virtual: 'এগুলোর মধ্যে কোনটি আপনার উপর কেমন দেখাবে জানতে চান? আমাদের ভার্চুয়াল ট্রাই-অন ব্যবহার করুন!',
+      no_products: 'আপনার অনুরোধের সাথে মিলে এমন কোনো পণ্য পাইনি।',
+      browse_categories: 'ক্যাটাগরি ব্রাউজ করুন',
+      show_featured: 'বিশেষ পণ্যগুলো দেখুন',
+      contact_support: 'সাপোর্টে যোগাযোগ করুন',
+      language_changed: 'ভাষা বাংলায় পরিবর্তিত হয়েছে',
+      session_memory_note: 'আমি আমাদের আগের কথোপকথন মনে রেখেছি।',
+      proactive_suggestion: 'আপনি এখানে থাকতে থাকতে, এই ট্রেন্ডিং পণ্যগুলো পছন্দ করতে পারেন:',
+      voice_ready: 'ভয়েস ইনপুট প্রস্তুত - আপনার প্রশ্ন বলুন!'
+    });
+  }
+
+  private detectLanguage(message: string): string {
+    // Simple language detection for Bangla vs English
+    const banglaPattern = /[\u0980-\u09FF]/;
+    return banglaPattern.test(message) ? 'bn' : 'en';
+  }
+
+  private translate(key: string, language: string = 'en', params: Record<string, any> = {}): string {
+    const translations = this.translations.get(language) || this.translations.get('en')!;
+    let text = translations[key] || key;
+    
+    // Replace parameters in translation
+    Object.keys(params).forEach(param => {
+      text = text.replace(`{${param}}`, params[param].toString());
+    });
+    
+    return text;
+  }
+
+  private getOrCreateSessionMemory(sessionId: string): SessionMemory {
+    if (!this.sessionMemories.has(sessionId)) {
+      this.sessionMemories.set(sessionId, {
+        recentSearches: [],
+        viewedProducts: [],
+        preferredCategories: [],
+        lastActivity: new Date(),
+        userPreferences: {}
+      });
+    }
+    
+    const memory = this.sessionMemories.get(sessionId)!;
+    memory.lastActivity = new Date();
+    return memory;
+  }
+
+  private updateSessionMemory(sessionId: string, update: Partial<SessionMemory>) {
+    const memory = this.getOrCreateSessionMemory(sessionId);
+    Object.assign(memory, update);
+  }
+
+  private cleanupOldSessions() {
+    const now = new Date();
+    const maxAge = 60 * 60 * 1000; // 1 hour
+    
+    for (const [sessionId, memory] of this.sessionMemories.entries()) {
+      if (now.getTime() - memory.lastActivity.getTime() > maxAge) {
+        this.sessionMemories.delete(sessionId);
+      }
+    }
+  }
+
+  async generateProactiveSuggestion(context: ChatContext): Promise<ChatbotResponse | null> {
+    try {
+      const memory = this.getOrCreateSessionMemory(context.sessionId);
+      const language = context.language || 'en';
+      
+      // Get trending or featured products
+      const products = await storage.getProducts({ featured: true, limit: 3 });
+      
+      if (products.length === 0) return null;
+      
+      const productList = products.map(p => 
+        `• ${p.name} - $${p.price}`
+      ).join('\n');
+      
+      return {
+        message: this.translate('proactive_suggestion', language) + '\n\n' + productList + '\n\n' + 
+                this.translate('try_virtual', language),
+        intent: 'proactive_suggestion',
+        confidence: 0.8,
+        productRecommendations: products,
+        actions: ['virtual_tryon', 'view_details'],
+        suggestedQueries: [
+          language === 'bn' ? 'ভার্চুয়াল ট্রাই-অন করুন' : 'Try virtual fitting',
+          language === 'bn' ? 'আরো দেখুন' : 'Show more details'
+        ],
+        language,
+        proactivePrompt: true
+      };
+      
+    } catch (error) {
+      console.error('Proactive suggestion error:', error);
+      return null;
+    }
+  }
+
   async processMessage(
     message: string,
     context: ChatContext
   ): Promise<ChatbotResponse> {
     try {
+      // Clean up old sessions periodically
+      if (Math.random() < 0.1) {
+        this.cleanupOldSessions();
+      }
+      
+      // Detect language and update context
+      const detectedLanguage = this.detectLanguage(message);
+      context.language = context.language || detectedLanguage;
+      
+      // Handle language change commands
+      if (message.toLowerCase().includes('switch to english') || message.toLowerCase().includes('change language english')) {
+        context.language = 'en';
+        return {
+          message: this.translate('language_changed', 'en'),
+          intent: 'language_change',
+          confidence: 1.0,
+          language: 'en'
+        };
+      }
+      
+      if (message.toLowerCase().includes('বাংলায় পরিবর্তন') || message.toLowerCase().includes('switch to bangla')) {
+        context.language = 'bn';
+        return {
+          message: this.translate('language_changed', 'bn'),
+          intent: 'language_change',
+          confidence: 1.0,
+          language: 'bn'
+        };
+      }
+      
+      // Get or create session memory
+      context.sessionMemory = this.getOrCreateSessionMemory(context.sessionId);
+      
       // Analyze intent and extract entities
-      const intent = await this.analyzeIntent(message);
+      const intent = await this.analyzeIntent(message, context.language);
       const entities = await this.extractEntities(message, intent);
+      
+      // Update session memory with search terms
+      if (entities.searchTerms && entities.searchTerms.length > 0) {
+        const memory = context.sessionMemory;
+        memory.recentSearches = [...new Set([...entities.searchTerms, ...memory.recentSearches])].slice(0, 10);
+        this.updateSessionMemory(context.sessionId, { recentSearches: memory.recentSearches });
+      }
       
       // Update context
       context.currentIntent = intent;
@@ -172,6 +364,16 @@ Remember: You have access to live product data, stock levels, and user order inf
           response = await this.handleGeneralQuery(message, context);
       }
 
+      // Add language to response
+      response.language = context.language;
+      
+      // Update session memory with viewed products
+      if (response.productRecommendations && response.productRecommendations.length > 0) {
+        const memory = context.sessionMemory;
+        memory.viewedProducts = [...response.productRecommendations, ...memory.viewedProducts].slice(0, 20);
+        this.updateSessionMemory(context.sessionId, { viewedProducts: memory.viewedProducts });
+      }
+      
       // Add response to conversation history
       context.conversationHistory.push({
         role: 'assistant',
@@ -191,19 +393,35 @@ Remember: You have access to live product data, stock levels, and user order inf
     }
   }
 
-  private async analyzeIntent(message: string): Promise<string> {
+  private async analyzeIntent(message: string, language: string = 'en'): Promise<string> {
     const messageLower = message.toLowerCase();
     
+    // Bangla pattern recognition
+    if (language === 'bn') {
+      if (messageLower.includes('কত') || messageLower.includes('স্টক') || messageLower.includes('পণ্য') || messageLower.includes('আছে')) {
+        return 'stock_check';
+      }
+      if (messageLower.includes('ভার্চুয়াল') || messageLower.includes('ট্রাই') || messageLower.includes('পরে দেখ')) {
+        return 'virtual_tryon_help';
+      }
+      if (messageLower.includes('সাইজ') || messageLower.includes('মাপ') || messageLower.includes('ফিট')) {
+        return 'size_help';
+      }
+      if (messageLower.includes('খুঁজ') || messageLower.includes('দেখা') || messageLower.includes('পণ্য')) {
+        return 'product_inquiry';
+      }
+    }
+    
     // Priority patterns for stock queries (check first)
-    if (messageLower.match(/\b(how many|total|count|number of)\b.*\b(item|product|stock|available|inventory)\b/)) {
+    if (messageLower.match(/\b(how many|total|count|number of|কত|কতটি)\b.*\b(item|product|stock|available|inventory|পণ্য|স্টক)\b/)) {
       return 'stock_check';
     }
     
-    if (messageLower.match(/\b(do you have|is.*available|any.*left|.*in stock|.*available|.*inventory)\b/)) {
+    if (messageLower.match(/\b(do you have|is.*available|any.*left|.*in stock|.*available|.*inventory|আছে|পাওয়া যায়)\b/)) {
       return 'stock_check';
     }
     
-    if (messageLower.match(/\b(stock|inventory|available|availability)\b/)) {
+    if (messageLower.match(/\b(stock|inventory|available|availability|স্টক|পণ্য)\b/)) {
       return 'stock_check';
     }
     
@@ -211,11 +429,13 @@ Remember: You have access to live product data, stock levels, and user order inf
     const intents = {
       virtual_tryon_help: [
         'try on', 'virtual', 'fitting', 'how does it look', 'upload photo',
-        'avatar', 'try it', 'see how', 'wear it', 'fit me'
+        'avatar', 'try it', 'see how', 'wear it', 'fit me',
+        'ভার্চুয়াল', 'ট্রাই', 'পরে দেখ', 'ফিটিং'
       ],
       size_help: [
         'size', 'fit', 'sizing', 'measurements', 'too big', 'too small', 
-        'what size', 'size guide', 'size chart', 'fit guide'
+        'what size', 'size guide', 'size chart', 'fit guide',
+        'সাইজ', 'মাপ', 'ফিট', 'বড়', 'ছোট'
       ],
       order_tracking: [
         'order', 'delivery', 'shipping', 'track', 'status', 'when will',
@@ -228,7 +448,8 @@ Remember: You have access to live product data, stock levels, and user order inf
       product_inquiry: [
         'product', 'item', 'clothes', 'clothing', 'shirt', 'dress', 'shoes', 
         'buy', 'purchase', 'looking for', 'find', 'search', 'show me',
-        'pants', 'trouser', 'jacket', 'coat', 'top', 'bottom'
+        'pants', 'trouser', 'jacket', 'coat', 'top', 'bottom',
+        'পণ্য', 'কাপড়', 'শার্ট', 'প্যান্ট', 'জুতা', 'খুঁজ', 'দেখা', 'কিন'
       ],
       general_fashion_advice: [
         'style', 'outfit', 'fashion', 'what to wear', 'looks good', 'match',

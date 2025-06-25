@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { VoiceInput } from '@/components/VoiceInput';
 import { 
   MessageCircle, 
   X, 
@@ -14,7 +15,9 @@ import {
   Minimize2,
   Maximize2,
   RotateCcw,
-  ExternalLink
+  ExternalLink,
+  Globe,
+  Clock
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -42,6 +45,9 @@ export function Chatbot({ className }: ChatbotProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [language, setLanguage] = useState('en');
+  const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
+  const [lastActivity, setLastActivity] = useState(Date.now());
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +82,7 @@ export function Chatbot({ className }: ChatbotProps) {
     setInputValue('');
     setIsLoading(true);
     setIsTyping(true);
+    resetIdleTimer();
 
     try {
       const response = await fetch('/api/chatbot/chat', {
@@ -85,7 +92,8 @@ export function Chatbot({ className }: ChatbotProps) {
         },
         body: JSON.stringify({
           message,
-          sessionId
+          sessionId,
+          language
         }),
         credentials: 'include'
       });
@@ -99,6 +107,11 @@ export function Chatbot({ className }: ChatbotProps) {
       // Update session ID if new
       if (data.sessionId && !sessionId) {
         setSessionId(data.sessionId);
+      }
+
+      // Update language if changed
+      if (data.language) {
+        setLanguage(data.language);
       }
 
       const assistantMessage: ChatMessage = {
@@ -144,21 +157,110 @@ export function Chatbot({ className }: ChatbotProps) {
       // Add welcome message
       const welcomeMessage: ChatMessage = {
         role: 'assistant',
-        content: `Hi${user ? ` ${user.firstName || ''}` : ''}! 👋 I'm EshoBot, your AI fashion assistant. I can help you with:\n\n• Product search and recommendations\n• Virtual Try-On and AI features\n• Sizing and fit guidance\n• Order tracking${user ? '' : ' (sign in required)'}\n• Fashion advice and styling\n\nWhat can I help you with today?`,
+        content: getWelcomeMessage(),
         timestamp: new Date().toISOString(),
-        quickReplies: [
-          "Show me AI features",
-          "Help me find products",
-          "Virtual try-on help"
-        ]
+        quickReplies: getWelcomeQuickReplies()
       };
       setMessages([welcomeMessage]);
     }
+    resetIdleTimer();
+  };
+
+  const getWelcomeMessage = () => {
+    const userName = user ? ` ${user.firstName || ''}` : '';
+    
+    if (language === 'bn') {
+      return `হ্যালো${userName}! আমি এশোবট, আপনার এআই ফ্যাশন সহায়ক। আমি আপনাকে সাহায্য করতে পারি:\n\n• পণ্য অনুসন্ধান এবং সুপারিশ\n• ভার্চুয়াল ট্রাই-অন এবং এআই বৈশিষ্ট্য\n• সাইজ এবং ফিট গাইড\n• অর্ডার ট্র্যাকিং${user ? '' : ' (সাইন ইন প্রয়োজন)'}\n• ফ্যাশন পরামর্শ এবং স্টাইলিং\n\nআজ আমি আপনাকে কীভাবে সাহায্য করতে পারি?`;
+    }
+    
+    return `Hi${userName}! I'm EshoBot, your AI fashion assistant. I can help you with:\n\n• Product search and recommendations\n• Virtual Try-On and AI features\n• Sizing and fit guidance\n• Order tracking${user ? '' : ' (sign in required)'}\n• Fashion advice and styling\n\nWhat can I help you with today?`;
+  };
+
+  const getWelcomeQuickReplies = () => {
+    if (language === 'bn') {
+      return [
+        "এআই বৈশিষ্ট্য দেখুন",
+        "পণ্য খুঁজতে সাহায্য",
+        "ভার্চুয়াল ট্রাই-অন সাহায্য"
+      ];
+    }
+    
+    return [
+      "Show me AI features",
+      "Help me find products", 
+      "Virtual try-on help"
+    ];
+  };
+
+  const resetIdleTimer = () => {
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+    }
+    
+    setLastActivity(Date.now());
+    
+    const timer = setTimeout(() => {
+      if (isOpen && !isMinimized && !isLoading) {
+        handleIdlePrompt();
+      }
+    }, 30000); // 30 seconds
+    
+    setIdleTimer(timer);
+  };
+
+  const handleIdlePrompt = async () => {
+    try {
+      const response = await fetch('/api/chatbot/proactive-suggestion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          language
+        }),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.message) {
+          const proactiveMessage: ChatMessage = {
+            role: 'assistant',
+            content: data.message,
+            timestamp: new Date().toISOString(),
+            quickReplies: data.quickReplies,
+            productRecommendations: data.productRecommendations,
+            intent: 'proactive_suggestion'
+          };
+          
+          setMessages(prev => [...prev, proactiveMessage]);
+        }
+      }
+    } catch (error) {
+      console.error('Error getting proactive suggestion:', error);
+    }
+    
+    resetIdleTimer();
+  };
+
+  const toggleLanguage = () => {
+    const newLanguage = language === 'en' ? 'bn' : 'en';
+    setLanguage(newLanguage);
+    
+    // Send language change message
+    const changeMessage = newLanguage === 'bn' ? 'বাংলায় পরিবর্তন করুন' : 'switch to english';
+    sendMessage(changeMessage);
   };
 
   const closeChatbot = () => {
     setIsOpen(false);
     setIsMinimized(false);
+    
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      setIdleTimer(null);
+    }
   };
 
   const clearChat = () => {
@@ -228,6 +330,15 @@ export function Chatbot({ className }: ChatbotProps) {
             </Badge>
           </CardTitle>
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleLanguage}
+              className="h-8 w-8 p-0"
+              title={language === 'en' ? 'বাংলা' : 'English'}
+            >
+              <Globe className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -373,10 +484,25 @@ export function Chatbot({ className }: ChatbotProps) {
             <Input
               ref={inputRef}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask me about products, AI features, or get help..."
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                resetIdleTimer();
+              }}
+              placeholder={language === 'bn' ? 
+                "পণ্য, এআই বৈশিষ্ট্য বা সাহায্য সম্পর্কে জিজ্ঞাসা করুন..." : 
+                "Ask me about products, AI features, or get help..."
+              }
               disabled={isLoading}
               className="flex-1"
+            />
+            <VoiceInput
+              onVoiceInput={(text) => {
+                setInputValue(text);
+                // Auto-send voice input
+                setTimeout(() => sendMessage(text), 100);
+              }}
+              language={language}
+              disabled={isLoading}
             />
             <Button 
               type="submit" 
@@ -392,8 +518,15 @@ export function Chatbot({ className }: ChatbotProps) {
           </form>
           
           {/* Footer */}
-          <div className="text-xs text-gray-500 text-center mt-2">
-            Powered by AI • GDPR Compliant • {user ? 'Authenticated' : 'Guest Mode'}
+          <div className="text-xs text-gray-500 text-center mt-2 flex items-center justify-center gap-2">
+            <span>{language === 'bn' ? 'এআই চালিত • জিডিপিআর সম্মত' : 'Powered by AI • GDPR Compliant'}</span>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {language === 'bn' ? 'স্মার্ট মেমরি' : 'Smart Memory'}
+            </span>
+            <span>•</span>
+            <span>{user ? (language === 'bn' ? 'প্রমাণিত' : 'Authenticated') : (language === 'bn' ? 'গেস্ট মোড' : 'Guest Mode')}</span>
           </div>
         </CardContent>
       )}

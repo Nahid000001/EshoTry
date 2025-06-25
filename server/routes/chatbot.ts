@@ -64,7 +64,7 @@ setInterval(cleanupOldSessions, 60 * 60 * 1000);
 // Chat endpoint
 router.post('/chat', async (req, res) => {
   try {
-    const { message, sessionId = generateSessionId() } = req.body;
+    const { message, sessionId = generateSessionId(), language = 'en' } = req.body;
     
     if (!message || typeof message !== 'string') {
       return res.status(400).json({
@@ -99,7 +99,8 @@ router.post('/chat', async (req, res) => {
         content: msg.content,
         timestamp: msg.timestamp
       })),
-      userProfile
+      userProfile,
+      language
     };
 
     // Process message with chatbot
@@ -136,6 +137,7 @@ router.post('/chat', async (req, res) => {
       quickReplies,
       productRecommendations: response.productRecommendations,
       requiresEscalation: response.requiresEscalation,
+      language: response.language || language,
       timestamp: new Date().toISOString()
     });
 
@@ -214,6 +216,56 @@ router.delete('/session/:sessionId', async (req, res) => {
   }
 });
 
+// Proactive suggestion endpoint
+router.post('/proactive-suggestion', async (req, res) => {
+  try {
+    const { sessionId, language = 'en' } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Session ID required' });
+    }
+
+    // Get session context
+    const session = getOrCreateSession(sessionId);
+    const context = {
+      sessionId,
+      conversationHistory: session.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp
+      })),
+      language
+    };
+
+    // Generate proactive suggestion
+    const suggestion = await eshoTryChatbot.generateProactiveSuggestion(context);
+    
+    if (suggestion) {
+      // Add to session history
+      session.messages.push({
+        role: 'assistant',
+        content: suggestion.message,
+        timestamp: new Date()
+      });
+
+      res.json({
+        message: suggestion.message,
+        productRecommendations: suggestion.productRecommendations,
+        quickReplies: suggestion.suggestedQueries,
+        language: suggestion.language
+      });
+    } else {
+      res.json({ message: null });
+    }
+
+  } catch (error) {
+    console.error('Proactive suggestion error:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
 // Get chatbot status and capabilities
 router.get('/status', async (req, res) => {
   try {
@@ -227,9 +279,17 @@ router.get('/status', async (req, res) => {
         orderTracking: req.isAuthenticated && req.isAuthenticated(),
         aiFeaturesHelp: true,
         fashionAdvice: true,
-        generalSupport: true
+        generalSupport: true,
+        multilingualSupport: true,
+        sessionMemory: true,
+        proactiveSuggestions: true,
+        voiceInput: true
       },
       features: [
+        'Multilingual support (English, Bangla)',
+        'Session memory and context awareness',
+        'Proactive product suggestions',
+        'Voice input for mobile devices',
         'Natural language processing',
         'Product search and recommendations',
         'Virtual Try-On troubleshooting',
@@ -238,6 +298,7 @@ router.get('/status', async (req, res) => {
         'Size and fit assistance',
         'Fashion styling advice'
       ],
+      languages: ['en', 'bn'],
       activeSessions: chatSessions.size,
       uptime: process.uptime()
     });

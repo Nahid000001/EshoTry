@@ -235,6 +235,10 @@ Changelog:
 - June 25, 2025. Enhanced chatbot NLP with fuzzy matching, synonym handling, and improved stock query performance
 - June 25, 2025. PostgreSQL integration optimized for real-time product search with sub-500ms response times
 - June 25, 2025. Comprehensive validation completed: 100% intent accuracy, production-ready AI assistant
+- June 25, 2025. Multilingual chatbot support implemented: English and Bangla with automatic language detection
+- June 25, 2025. Session memory and conversational context added for personalized user experience
+- June 25, 2025. Proactive suggestions with 30-second idle detection for enhanced engagement
+- June 25, 2025. Voice input functionality integrated for mobile devices with GDPR compliance
 ```
 
 ## User Preferences
