@@ -1,0 +1,132 @@
+{
+  "timestamp": "2025-06-25T02:48:15.191Z",
+  "summary": {
+    "totalTests": 15,
+    "passedTests": 3,
+    "failedTests": 12,
+    "overallSuccessRate": 20
+  },
+  "results": {
+    "endToEnd": {
+      "Photo Upload Try-On": {
+        "success": false,
+        "responseTime": 73,
+        "status": 401,
+        "hasValidResponse": true
+      },
+      "Size Recommendation": {
+        "success": true,
+        "responseTime": 6,
+        "status": 200,
+        "hasValidResponse": false
+      },
+      "Body Measurements Processing": {
+        "success": false,
+        "responseTime": 5,
+        "status": 401,
+        "hasValidResponse": true
+      }
+    },
+    "multiDevice": {
+      "Desktop": {
+        "success": false,
+        "responseTime": 4,
+        "hasResponsiveElements": true
+      },
+      "Mobile": {
+        "success": false,
+        "error": "socket hang up"
+      },
+      "Tablet": {
+        "success": false,
+        "responseTime": 11,
+        "hasResponsiveElements": true
+      }
+    },
+    "loadTest": {
+      "totalRequests": 1000,
+      "successfulRequests": 0,
+      "failedRequests": 1000,
+      "successRate": 0,
+      "averageResponseTime": 0,
+      "totalDuration": 2103,
+      "requestsPerSecond": 475.511174512601
+    },
+    "errorHandling": {
+      "Invalid Image Data": {
+        "gracefulFailure": false,
+        "hasErrorMessage": false,
+        "noServerCrash": false,
+        "error": "socket hang up"
+      },
+      "Missing Required Fields": {
+        "gracefulFailure": false,
+        "hasErrorMessage": false,
+        "noServerCrash": false,
+        "error": "socket hang up"
+      },
+      "Unsupported Garment Type": {
+        "gracefulFailure": true,
+        "hasErrorMessage": "Unauthorized",
+        "noServerCrash": true,
+        "status": 401
+      },
+      "Non-existent Product Size Recommendation": {
+        "gracefulFailure": false,
+        "noServerCrash": true,
+        "status": 200
+      }
+    },
+    "performance": {
+      "API Response Time": {
+        "averageTime": 600,
+        "maxTime": 600,
+        "threshold": 500,
+        "meetsRequirement": false,
+        "samples": [
+          600,
+          600
+        ]
+      },
+      "Virtual Try-On Processing": {
+        "averageTime": 422,
+        "maxTime": 2100,
+        "threshold": 2000,
+        "meetsRequirement": true,
+        "samples": [
+          2100,
+          4,
+          2,
+          2,
+          2
+        ]
+      },
+      "Size Recommendation": {
+        "averageTime": 600,
+        "maxTime": 600,
+        "threshold": 500,
+        "meetsRequirement": false,
+        "samples": [
+          600,
+          600
+        ]
+      },
+      "Frontend Loading": {
+        "averageTime": 2100,
+        "maxTime": 2100,
+        "threshold": 2000,
+        "meetsRequirement": false,
+        "samples": [
+          2100,
+          2100,
+          2100
+        ]
+      }
+    }
+  },
+  "recommendations": [
+    "Optimize performance for: API Response Time, Size Recommendation, Frontend Loading",
+    "Improve system reliability under load - consider connection pooling and caching",
+    "Enhance error handling for better user experience"
+  ]
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VirtualTryOn } from './VirtualTryOn';
@@ -31,6 +31,9 @@ export function VirtualTryOnModal({
             <Sparkles className="h-6 w-6 text-purple-600" />
             AI-Powered Virtual Try-On
           </DialogTitle>
+          <DialogDescription>
+            Experience fashion with AI technology. Choose photo upload or avatar creation for virtual try-on.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

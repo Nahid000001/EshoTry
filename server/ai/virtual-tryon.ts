@@ -163,7 +163,8 @@ export class VirtualTryOnEngine {
         bodyDetected: false,
         measurements: this.getDefaultMeasurements(),
         landmarks: [],
-        segmentationMask: null
+        segmentationMask: null,
+        fallbackReason: 'No body landmarks detected in image'
       };
     }
   }
