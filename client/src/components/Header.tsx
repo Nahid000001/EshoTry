@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
+import { VirtualTryOnModal } from "./VirtualTryOnModal";
+import { useVirtualTryOn } from "@/hooks/useVirtualTryOn";
 import { 
   Search, 
   Camera, 
@@ -22,6 +24,14 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const { user, isAuthenticated, isLoading } = useAuth();
   const { cartCount } = useCart();
+  const { 
+    isOpen, 
+    productId, 
+    productImage, 
+    garmentType, 
+    openVirtualTryOn, 
+    closeVirtualTryOn 
+  } = useVirtualTryOn();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +41,11 @@ export function Header() {
   };
 
   const handleVirtualTryOn = () => {
-    // For now, show a placeholder message
-    alert("Virtual Try-On feature coming soon! This will launch our AI-powered try-on experience.");
+    openVirtualTryOn({
+      productId: 1,
+      productImage: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500",
+      garmentType: "top"
+    });
   };
 
   return (
@@ -146,6 +159,15 @@ export function Header() {
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
         </form>
       </div>
+
+      {/* Virtual Try-On Modal */}
+      <VirtualTryOnModal
+        isOpen={isOpen}
+        onClose={closeVirtualTryOn}
+        productId={productId}
+        productImage={productImage}
+        garmentType={garmentType}
+      />
     </header>
   );
 }

@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { Product, Category } from "@shared/schema";
 import { ProductCard } from "@/components/ProductCard";
+import { VirtualTryOnModal } from "@/components/VirtualTryOnModal";
+import { useVirtualTryOn } from "@/hooks/useVirtualTryOn";
 import { 
   Camera, 
   Brain, 
@@ -38,8 +40,21 @@ export default function Landing() {
     },
   });
 
+  const { 
+    isOpen, 
+    productId, 
+    productImage, 
+    garmentType, 
+    openVirtualTryOn, 
+    closeVirtualTryOn 
+  } = useVirtualTryOn();
+
   const handleVirtualTryOn = () => {
-    alert("Virtual Try-On feature coming soon! This will launch our AI-powered try-on experience.");
+    openVirtualTryOn({
+      productId: featuredProducts[0]?.id || 1,
+      productImage: featuredProducts[0]?.imageUrl || "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500",
+      garmentType: "top"
+    });
   };
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
@@ -291,6 +306,15 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Virtual Try-On Modal */}
+      <VirtualTryOnModal
+        isOpen={isOpen}
+        onClose={closeVirtualTryOn}
+        productId={productId}
+        productImage={productImage}
+        garmentType={garmentType}
+      />
     </div>
   );
 }

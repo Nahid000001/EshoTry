@@ -1,0 +1,77 @@
+I need you to fully implement the Virtual Try-On feature for my AI-powered fashion platform, replacing the current "coming soon" popup. The platform is React (frontend) + Express (backend) + PostgreSQL with working AI modules (TensorFlow + MediaPipe).
+
+Current Issue:
+
+Clicking "Start Virtual Try-On" shows only a placeholder alert message
+
+Full virtual try-on flow is missing from both frontend and backend
+
+What to Build:
+
+✅ Replace alert with full feature integration:
+
+On click, launch the Virtual Try-On module, providing two options:
+
+Photo Upload Try-On: User uploads image (secure, auto-deletes after processing)
+
+Avatar Try-On: User enters measurements to generate privacy-conscious avatar
+
+Detect body keypoints using MediaPipe
+
+Overlay selected clothing from product catalog onto the photo or avatar
+
+Visualize multiple sizes to assist confident purchase decisions
+
+Ensure rendering completes in under 2 seconds
+
+Responsive design: Works seamlessly on desktop and mobile
+
+✅ Backend endpoints (Express API) must:
+
+Receive photo/avatar data securely
+
+Process with MediaPipe for pose estimation
+
+Handle garment overlay logic
+
+Return try-on result image or error gracefully
+
+✅ Frontend (React) must:
+
+Launch a modal or full-screen try-on interface
+
+Provide intuitive step-by-step flow for photo upload or avatar creation
+
+Display try-on result, allow size selection visualization
+
+Handle errors clearly if try-on fails
+
+Additional Requirements:
+
+Privacy: Auto-delete uploaded photos unless explicit consent to save
+
+Maintain performance: API response under 500ms, rendering under 2s
+
+Accessibility: WCAG 2.1 AA compliance for all try-on interfaces
+
+Keep existing recommendation engine and product catalog fully functional
+
+Environment:
+
+React + Express (already deployed)
+
+MediaPipe, TensorFlow AI stack already integrated
+
+PostgreSQL database with products and user profiles in place
+
+Deliverables:
+
+Fully working, production-ready Virtual Try-On feature
+
+No placeholder alerts; complete user-facing functionality
+
+Updated React components and backend API routes
+
+Documentation update for new feature
+
+This feature is critical for my academic project and live demo. Focus on production quality, privacy compliance, and smooth UX.

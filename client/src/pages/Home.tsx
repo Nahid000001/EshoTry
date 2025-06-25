@@ -7,6 +7,8 @@ import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { VirtualTryOnModal } from "@/components/VirtualTryOnModal";
+import { useVirtualTryOn } from "@/hooks/useVirtualTryOn";
 import { 
   Camera, 
   Heart, 
@@ -37,8 +39,21 @@ export default function Home() {
     },
   });
 
+  const { 
+    isOpen, 
+    productId, 
+    productImage, 
+    garmentType, 
+    openVirtualTryOn, 
+    closeVirtualTryOn 
+  } = useVirtualTryOn();
+
   const handleVirtualTryOn = () => {
-    alert("Virtual Try-On feature coming soon! This will launch our AI-powered try-on experience.");
+    openVirtualTryOn({
+      productId: recommendedProducts[0]?.id || 1,
+      productImage: recommendedProducts[0]?.imageUrl || "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500",
+      garmentType: "top"
+    });
   };
 
   useEffect(() => {
@@ -219,6 +234,15 @@ export default function Home() {
           </Button>
         </div>
       </section>
+
+      {/* Virtual Try-On Modal */}
+      <VirtualTryOnModal
+        isOpen={isOpen}
+        onClose={closeVirtualTryOn}
+        productId={productId}
+        productImage={productImage}
+        garmentType={garmentType}
+      />
     </div>
   );
 }

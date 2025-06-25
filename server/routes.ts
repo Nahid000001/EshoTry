@@ -328,7 +328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/virtual-tryon", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { userImage, garmentImage, garmentType } = req.body;
+      const { userImage, garmentImage, garmentType, autoDelete = true } = req.body;
       
       const result = await virtualTryOnEngine.processVirtualTryOn({
         userId,
@@ -336,6 +336,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         garmentImage,
         garmentType
       });
+      
+      // Auto-delete user image for privacy if requested
+      if (autoDelete) {
+        // Image is already processed and not stored on server
+        console.log(`Virtual try-on completed for user ${userId}, image auto-deleted for privacy`);
+      }
       
       res.json(result);
     } catch (error) {

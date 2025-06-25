@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { VirtualTryOnModal } from "@/components/VirtualTryOnModal";
+import { useVirtualTryOn } from "@/hooks/useVirtualTryOn";
 import { 
   Star, 
   Heart, 
@@ -36,6 +38,14 @@ export default function ProductDetail() {
   const { addToCart, isAddingToCart } = useCart();
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
+  const { 
+    isOpen, 
+    productId: modalProductId, 
+    productImage: modalProductImage, 
+    garmentType: modalGarmentType, 
+    openVirtualTryOn, 
+    closeVirtualTryOn 
+  } = useVirtualTryOn();
 
   const { data: product, isLoading, error } = useQuery<Product>({
     queryKey: ["/api/products", productId],
@@ -166,7 +176,23 @@ export default function ProductDetail() {
   };
 
   const handleVirtualTryOn = () => {
-    alert("Virtual Try-On feature coming soon! This will launch virtual try-on for this specific product.");
+    if (product) {
+      const garmentType = determineGarmentType(product.category || 'clothing');
+      openVirtualTryOn({
+        productId: product.id,
+        productImage: product.imageUrl,
+        garmentType
+      });
+    }
+  };
+
+  const determineGarmentType = (category: string): 'top' | 'bottom' | 'dress' | 'shoes' | 'accessories' => {
+    const cat = category.toLowerCase();
+    if (cat.includes('shirt') || cat.includes('top') || cat.includes('blouse') || cat.includes('jacket')) return 'top';
+    if (cat.includes('pant') || cat.includes('jean') || cat.includes('trouser') || cat.includes('short')) return 'bottom';
+    if (cat.includes('dress') || cat.includes('gown')) return 'dress';
+    if (cat.includes('shoe') || cat.includes('boot') || cat.includes('sneaker')) return 'shoes';
+    return 'accessories';
   };
 
   const handleShare = () => {
@@ -486,6 +512,15 @@ export default function ProductDetail() {
           limit={4}
         />
       </div>
+
+      {/* Virtual Try-On Modal */}
+      <VirtualTryOnModal
+        isOpen={isOpen}
+        onClose={closeVirtualTryOn}
+        productId={modalProductId}
+        productImage={modalProductImage}
+        garmentType={modalGarmentType}
+      />
     </div>
   );
 }
