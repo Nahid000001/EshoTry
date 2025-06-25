@@ -3,6 +3,7 @@
 // import { Pose } from '@mediapipe/pose';
 import * as tf from '@tensorflow/tfjs-node';
 import sharp from 'sharp';
+import * as THREE from 'three';
 
 interface TryOnRequest {
   userImage: string; // Base64 encoded image
@@ -19,7 +20,17 @@ interface TryOnResult {
     bodyDetected: boolean;
     garmentFitScore: number;
     recommendations: string[];
+    fabricPhysics: FabricPhysicsData;
+    textureQuality: number;
   };
+}
+
+interface FabricPhysicsData {
+  drapeCoefficient: number;
+  stretchFactor: number;
+  wrinkleIntensity: number;
+  shineFactor: number;
+  breathability: number;
 }
 
 interface BodyMeasurements {
@@ -448,6 +459,156 @@ export class VirtualTryOnEngine {
         accuracy: 0.1
       };
     }
+  }
+
+  private calculateTextureQuality(garmentData: any, fabricProperties: FabricPhysicsData): number {
+    // Calculate overall texture rendering quality
+    const physicsQuality = (
+      fabricProperties.drapeCoefficient +
+      fabricProperties.stretchFactor +
+      fabricProperties.shineFactor +
+      fabricProperties.breathability
+    ) / 4;
+    
+    return Math.max(0.5, Math.min(1, physicsQuality * 0.8 + 0.2));
+  }
+
+  private calculateTextureRoughness(data: Buffer, width: number, height: number): number {
+    // Calculate texture roughness from image data
+    let totalVariance = 0;
+    const pixelCount = width * height;
+    
+    for (let i = 0; i < data.length - 3; i += 3) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const brightness = (r + g + b) / 3;
+      
+      // Compare with neighboring pixels
+      if (i + width * 3 < data.length) {
+        const nextR = data[i + width * 3];
+        const nextG = data[i + width * 3 + 1];
+        const nextB = data[i + width * 3 + 2];
+        const nextBrightness = (nextR + nextG + nextB) / 3;
+        
+        totalVariance += Math.abs(brightness - nextBrightness);
+      }
+    }
+    
+    return Math.min(1, totalVariance / (pixelCount * 255));
+  }
+
+  private calculateTextureUniformity(data: Buffer, width: number, height: number): number {
+    // Calculate how uniform the texture is
+    const pixels: number[] = [];
+    for (let i = 0; i < data.length; i += 3) {
+      const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      pixels.push(brightness);
+    }
+    
+    const mean = pixels.reduce((sum, val) => sum + val, 0) / pixels.length;
+    const variance = pixels.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / pixels.length;
+    const standardDeviation = Math.sqrt(variance);
+    
+    return Math.max(0, 1 - (standardDeviation / 128)); // Normalize to 0-1
+  }
+
+  private calculateTextureDirectionality(data: Buffer, width: number, height: number): number {
+    // Simplified directional analysis
+    let horizontalVariance = 0;
+    let verticalVariance = 0;
+    
+    for (let y = 0; y < height - 1; y++) {
+      for (let x = 0; x < width - 1; x++) {
+        const idx = (y * width + x) * 3;
+        const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+        
+        // Horizontal neighbor
+        const hIdx = (y * width + x + 1) * 3;
+        const hBrightness = (data[hIdx] + data[hIdx + 1] + data[hIdx + 2]) / 3;
+        horizontalVariance += Math.abs(brightness - hBrightness);
+        
+        // Vertical neighbor
+        const vIdx = ((y + 1) * width + x) * 3;
+        const vBrightness = (data[vIdx] + data[vIdx + 1] + data[vIdx + 2]) / 3;
+        verticalVariance += Math.abs(brightness - vBrightness);
+      }
+    }
+    
+    const totalVariance = horizontalVariance + verticalVariance;
+    return totalVariance > 0 ? Math.abs(horizontalVariance - verticalVariance) / totalVariance : 0;
+  }
+
+  private calculateAverageBrightness(data: Buffer): number {
+    let total = 0;
+    for (let i = 0; i < data.length; i += 3) {
+      total += (data[i] + data[i + 1] + data[i + 2]) / 3;
+    }
+    return total / (data.length / 3) / 255; // Normalize to 0-1
+  }
+
+  private calculateContrast(data: Buffer): number {
+    const pixels: number[] = [];
+    for (let i = 0; i < data.length; i += 3) {
+      const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      pixels.push(brightness);
+    }
+    
+    const min = Math.min(...pixels);
+    const max = Math.max(...pixels);
+    return (max - min) / 255; // Normalize to 0-1
+  }
+
+  private getDefaultFabricProperties(garmentType: string): FabricPhysicsData {
+    const defaults: { [key: string]: FabricPhysicsData } = {
+      'top': {
+        drapeCoefficient: 0.6,
+        stretchFactor: 0.2,
+        wrinkleIntensity: 0.4,
+        shineFactor: 0.3,
+        breathability: 0.7
+      },
+      'dress': {
+        drapeCoefficient: 0.8,
+        stretchFactor: 0.15,
+        wrinkleIntensity: 0.5,
+        shineFactor: 0.4,
+        breathability: 0.6
+      },
+      'bottom': {
+        drapeCoefficient: 0.4,
+        stretchFactor: 0.25,
+        wrinkleIntensity: 0.3,
+        shineFactor: 0.2,
+        breathability: 0.5
+      },
+      'shoes': {
+        drapeCoefficient: 0.1,
+        stretchFactor: 0.05,
+        wrinkleIntensity: 0.1,
+        shineFactor: 0.8,
+        breathability: 0.3
+      },
+      'accessories': {
+        drapeCoefficient: 0.3,
+        stretchFactor: 0.1,
+        wrinkleIntensity: 0.2,
+        shineFactor: 0.6,
+        breathability: 0.4
+      }
+    };
+    
+    return defaults[garmentType] || defaults['top'];
+  }
+
+  private getDefaultTextureProperties(): any {
+    return {
+      roughness: 0.5,
+      uniformity: 0.5,
+      directionality: 0.3,
+      averageBrightness: 0.5,
+      contrast: 0.4
+    };
   }
 }
 

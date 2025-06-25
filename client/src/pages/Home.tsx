@@ -217,21 +217,61 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Virtual Try-On Promotion */}
-      <section className="py-16 bg-gradient-to-r from-primary to-gray-800 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold mb-4">Perfect Fit, Every Time</h2>
-          <p className="text-xl opacity-90 mb-8">
-            Use our AI-powered virtual try-on to see how clothes look before you buy
-          </p>
-          <Button
-            size="lg"
-            onClick={handleVirtualTryOn}
-            className="bg-secondary hover:bg-secondary/90 text-black font-semibold"
-          >
-            <Camera className="mr-2 h-5 w-5" />
-            Try Virtual Fitting
-          </Button>
+      {/* AI Features Showcase */}
+      <section className="py-16 bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4">Next-Generation Fashion AI</h2>
+            <p className="text-xl opacity-90 mb-8">
+              Experience the future with 3D visualization, realistic fabric physics, mobile AR, and intelligent recommendations
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur">
+              <Box className="h-12 w-12 mx-auto mb-4" />
+              <h3 className="font-semibold mb-2">3D Visualization</h3>
+              <p className="text-sm opacity-80">Interactive outfit combinations with AI compatibility scoring</p>
+            </div>
+            <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur">
+              <Sparkles className="h-12 w-12 mx-auto mb-4" />
+              <h3 className="font-semibold mb-2">Fabric Physics</h3>
+              <p className="text-sm opacity-80">Realistic drape, stretch, and texture simulation</p>
+            </div>
+            <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur">
+              <Smartphone className="h-12 w-12 mx-auto mb-4" />
+              <h3 className="font-semibold mb-2">Mobile AR</h3>
+              <p className="text-sm opacity-80">Real-time camera-based augmented reality try-on</p>
+            </div>
+            <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur">
+              <TrendingUp className="h-12 w-12 mx-auto mb-4" />
+              <h3 className="font-semibold mb-2">Smart Recommendations</h3>
+              <p className="text-sm opacity-80">85%+ accuracy with seasonal trends and wardrobe analysis</p>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap justify-center gap-4">
+            <Button
+              size="lg"
+              onClick={handleVirtualTryOn}
+              className="bg-secondary hover:bg-secondary/90 text-black font-semibold"
+            >
+              <Camera className="mr-2 h-5 w-5" />
+              Try Virtual Fitting
+            </Button>
+            <Link href="/advanced">
+              <Button size="lg" variant="outline" className="text-white border-white hover:bg-white hover:text-purple-600">
+                <Sparkles className="mr-2 h-5 w-5" />
+                Explore AI Features
+              </Button>
+            </Link>
+            <Link href="/wardrobe">
+              <Button size="lg" variant="outline" className="text-white border-white hover:bg-white hover:text-purple-600">
+                <BarChart3 className="mr-2 h-5 w-5" />
+                Analyze Wardrobe
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 

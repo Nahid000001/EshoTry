@@ -324,6 +324,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced recommendation routes
+  app.get("/api/recommendations/enhanced", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { limit = 20, context } = req.query;
+      
+      const { enhancedRecommendationEngine } = await import('./ai/enhanced-recommendations');
+      const recommendations = await enhancedRecommendationEngine.getPersonalizedRecommendations(
+        userId,
+        parseInt(limit),
+        context
+      );
+      
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error generating enhanced recommendations:", error);
+      res.status(500).json({ message: "Failed to generate recommendations" });
+    }
+  });
+
+  app.get("/api/wardrobe/analyze", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const { enhancedRecommendationEngine } = await import('./ai/enhanced-recommendations');
+      const analysis = await enhancedRecommendationEngine.analyzeWardrobe(userId);
+      
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing wardrobe:", error);
+      res.status(500).json({ message: "Failed to analyze wardrobe" });
+    }
+  });
+
+  app.get("/api/outfits/suggestions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { baseProductId } = req.query;
+      
+      const { styleCompatibilityEngine } = await import('./ai/style-compatibility');
+      const allProducts = await storage.getProducts({ limit: 100 });
+      
+      let baseProduct;
+      if (baseProductId) {
+        baseProduct = await storage.getProductById(parseInt(baseProductId));
+      }
+      
+      const outfits = await styleCompatibilityEngine.generateOutfitRecommendations(
+        baseProduct,
+        allProducts
+      );
+      
+      res.json(outfits);
+    } catch (error) {
+      console.error("Error generating outfit suggestions:", error);
+      res.status(500).json({ message: "Failed to generate outfit suggestions" });
+    }
+  });
+
   // Virtual Try-On routes
   app.post("/api/virtual-tryon", isAuthenticated, async (req: any, res) => {
     try {
