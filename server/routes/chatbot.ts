@@ -61,6 +61,120 @@ function cleanupOldSessions() {
 // Clean up every hour
 setInterval(cleanupOldSessions, 60 * 60 * 1000);
 
+// Visual search endpoint
+router.post('/visual-search', async (req, res) => {
+  try {
+    const { image, sessionId = generateSessionId(), language = 'en' } = req.body;
+    
+    if (!image) {
+      return res.status(400).json({
+        error: 'Image data is required'
+      });
+    }
+
+    // Get user info if authenticated
+    let userId: string | undefined;
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      userId = (req.user as any)?.claims?.sub;
+    }
+
+    // Get or create session
+    const session = getOrCreateSession(sessionId, userId);
+
+    // Prepare context for visual search
+    const context = {
+      userId,
+      sessionId,
+      conversationHistory: session.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp
+      })),
+      language
+    };
+
+    // Process visual search
+    const response = await eshoTryChatbot.processVisualSearch(image, context);
+
+    // Update session
+    session.messages.push({
+      role: 'user',
+      content: '[Image uploaded for visual search]',
+      timestamp: new Date()
+    });
+
+    session.messages.push({
+      role: 'assistant',
+      content: response.message,
+      timestamp: new Date()
+    });
+
+    // Keep only last 20 messages
+    if (session.messages.length > 20) {
+      session.messages = session.messages.slice(-20);
+    }
+
+    res.json({
+      sessionId,
+      message: response.message,
+      intent: response.intent,
+      confidence: response.confidence,
+      actions: response.actions,
+      suggestedQueries: response.suggestedQueries,
+      productRecommendations: response.productRecommendations,
+      language: response.language || language,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Visual search endpoint error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: "I'm having trouble processing the image. Please try again or contact our support team."
+    });
+  }
+});
+
+// Enhanced recommendations endpoint
+router.post('/recommendations', async (req, res) => {
+  try {
+    const { sessionId, userId, language = 'en' } = req.body;
+    
+    // Get user info if authenticated
+    let authenticatedUserId: string | undefined;
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      authenticatedUserId = (req.user as any)?.claims?.sub;
+    }
+    
+    const targetUserId = userId || authenticatedUserId;
+    
+    const context = {
+      userId: targetUserId,
+      sessionId: sessionId || generateSessionId(),
+      conversationHistory: [],
+      language
+    };
+
+    const response = await eshoTryChatbot.generateEnhancedRecommendations(targetUserId, context);
+
+    res.json({
+      message: response.message,
+      intent: response.intent,
+      confidence: response.confidence,
+      productRecommendations: response.productRecommendations,
+      actions: response.actions,
+      suggestedQueries: response.suggestedQueries,
+      language: response.language
+    });
+
+  } catch (error) {
+    console.error('Enhanced recommendations error:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
 // Chat endpoint
 router.post('/chat', async (req, res) => {
   try {

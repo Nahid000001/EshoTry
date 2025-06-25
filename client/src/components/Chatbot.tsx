@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { VoiceInput } from '@/components/VoiceInput';
+import { ImageUpload } from '@/components/ImageUpload';
 import { 
   MessageCircle, 
   X, 
@@ -17,7 +18,9 @@ import {
   RotateCcw,
   ExternalLink,
   Globe,
-  Clock
+  Clock,
+  Image as ImageIcon,
+  Sparkles
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -48,6 +51,8 @@ export function Chatbot({ className }: ChatbotProps) {
   const [language, setLanguage] = useState('en');
   const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
   const [lastActivity, setLastActivity] = useState(Date.now());
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -149,6 +154,130 @@ export function Chatbot({ className }: ChatbotProps) {
 
   const handleQuickReply = (reply: string) => {
     sendMessage(reply);
+  };
+
+  const handleImageUpload = async (base64Image: string) => {
+    setIsLoading(true);
+    setShowImageUpload(false);
+    
+    try {
+      const response = await fetch('/api/chatbot/visual-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: base64Image,
+          sessionId,
+          language
+        }),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process visual search');
+      }
+
+      const data = await response.json();
+      
+      // Update session ID if new
+      if (data.sessionId && !sessionId) {
+        setSessionId(data.sessionId);
+      }
+
+      const visualSearchMessage: ChatMessage = {
+        role: 'assistant',
+        content: data.message,
+        timestamp: data.timestamp,
+        intent: data.intent,
+        confidence: data.confidence,
+        productRecommendations: data.productRecommendations,
+        actions: data.actions,
+        suggestedQueries: data.suggestedQueries
+      };
+
+      setMessages(prev => [...prev, 
+        {
+          role: 'user',
+          content: language === 'bn' ? '[ভিজুয়াল সার্চের জন্য ছবি আপলোড করেছেন]' : '[Uploaded image for visual search]',
+          timestamp: new Date().toISOString()
+        },
+        visualSearchMessage
+      ]);
+
+    } catch (error) {
+      console.error('Error processing visual search:', error);
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: language === 'bn' 
+          ? 'ছবি প্রক্রিয়াকরণে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।'
+          : 'Error processing image. Please try again.',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+      resetIdleTimer();
+    }
+  };
+
+  const handleGetRecommendations = async () => {
+    setIsLoading(true);
+    setShowRecommendations(false);
+    
+    try {
+      const response = await fetch('/api/chatbot/recommendations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          language
+        }),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get recommendations');
+      }
+
+      const data = await response.json();
+      
+      const recommendationsMessage: ChatMessage = {
+        role: 'assistant',
+        content: data.message,
+        timestamp: new Date().toISOString(),
+        intent: data.intent,
+        confidence: data.confidence,
+        productRecommendations: data.productRecommendations,
+        actions: data.actions,
+        suggestedQueries: data.suggestedQueries
+      };
+
+      setMessages(prev => [...prev, 
+        {
+          role: 'user',
+          content: language === 'bn' ? 'আমার জন্য ব্যক্তিগত সুপারিশ দিন' : 'Show me personalized recommendations',
+          timestamp: new Date().toISOString()
+        },
+        recommendationsMessage
+      ]);
+
+    } catch (error) {
+      console.error('Error getting recommendations:', error);
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: language === 'bn' 
+          ? 'সুপারিশ তৈরিতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।'
+          : 'Error generating recommendations. Please try again.',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+      resetIdleTimer();
+    }
   };
 
   const openChatbot = () => {
@@ -495,6 +624,30 @@ export function Chatbot({ className }: ChatbotProps) {
               disabled={isLoading}
               className="flex-1"
             />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowImageUpload(!showImageUpload)}
+              disabled={isLoading}
+              className="px-2"
+              title={language === 'bn' ? 'ভিজুয়াল সার্চ' : 'Visual Search'}
+            >
+              <ImageIcon className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRecommendations(!showRecommendations)}
+              disabled={isLoading}
+              className="px-2"
+              title={language === 'bn' ? 'ব্যক্তিগত সুপারিশ' : 'Personal Recommendations'}
+            >
+              <Sparkles className="h-4 w-4" />
+            </Button>
+            
             <VoiceInput
               onVoiceInput={(text) => {
                 setInputValue(text);
@@ -516,6 +669,68 @@ export function Chatbot({ className }: ChatbotProps) {
               )}
             </Button>
           </form>
+          
+          {/* Image Upload Panel */}
+          {showImageUpload && (
+            <div className="mt-3 p-3 border rounded-lg bg-gray-50">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-medium text-sm">
+                  {language === 'bn' ? 'ভিজুয়াল সার্চ' : 'Visual Search'}
+                </h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowImageUpload(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+              <ImageUpload
+                onImageUpload={handleImageUpload}
+                language={language}
+                disabled={isLoading}
+              />
+            </div>
+          )}
+          
+          {/* Recommendations Panel */}
+          {showRecommendations && (
+            <div className="mt-3 p-3 border rounded-lg bg-gray-50">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-medium text-sm">
+                  {language === 'bn' ? 'ব্যক্তিগত সুপারিশ' : 'Personal Recommendations'}
+                </h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowRecommendations(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+              <div className="text-center">
+                <Button
+                  onClick={handleGetRecommendations}
+                  disabled={isLoading}
+                  className="w-full"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 mr-2" />
+                  )}
+                  {language === 'bn' ? 'আমার সুপারিশ পান' : 'Get My Recommendations'}
+                </Button>
+                <p className="text-xs text-gray-500 mt-2">
+                  {language === 'bn' 
+                    ? 'আপনার স্টাইল এবং পছন্দ অনুযায়ী কিউরেটেড'
+                    : 'Curated based on your style and preferences'}
+                </p>
+              </div>
+            </div>
+          )}
           
           {/* Footer */}
           <div className="text-xs text-gray-500 text-center mt-2 flex items-center justify-center gap-2">

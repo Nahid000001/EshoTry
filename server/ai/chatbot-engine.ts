@@ -1,6 +1,8 @@
 import OpenAI from 'openai';
 import { storage } from '../storage';
 import { Product, User } from '@shared/schema';
+import { visualSearchEngine } from './visual-search-engine';
+import { personalizationEngine } from './personalization-engine';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -360,6 +362,9 @@ Remember: You have access to live product data, stock levels, and user order inf
         case 'general_fashion_advice':
           response = await this.handleFashionAdvice(message, context, entities);
           break;
+        case 'visual_search':
+          response = await this.handleVisualSearch(message, context, entities);
+          break;
         default:
           response = await this.handleGeneralQuery(message, context);
       }
@@ -454,11 +459,15 @@ Remember: You have access to live product data, stock levels, and user order inf
       general_fashion_advice: [
         'style', 'outfit', 'fashion', 'what to wear', 'looks good', 'match',
         'styling', 'coordinate', 'combination', 'trend'
+      ],
+      visual_search: [
+        'upload', 'photo', 'image', 'picture', 'similar', 'find like this',
+        'visual search', 'image search', 'looks like'
       ]
     };
 
     // Check for intent patterns with priority
-    const intentOrder = ['virtual_tryon_help', 'size_help', 'order_tracking', 'ai_features_help', 'product_inquiry', 'general_fashion_advice'];
+    const intentOrder = ['virtual_tryon_help', 'size_help', 'order_tracking', 'ai_features_help', 'visual_search', 'product_inquiry', 'general_fashion_advice'];
     
     for (const intent of intentOrder) {
       const keywords = intents[intent as keyof typeof intents];
@@ -1100,6 +1109,209 @@ Remember: You have access to live product data, stock levels, and user order inf
     }
   }
 
+  private async handleVisualSearch(
+    message: string,
+    context: ChatContext,
+    entities: Record<string, any>
+  ): Promise<ChatbotResponse> {
+    const language = context.language || 'en';
+    
+    return {
+      message: language === 'bn' 
+        ? `ভিজুয়াল সার্চ ব্যবহার করতে, একটি ছবি আপলোড করুন এবং আমি অনুরূপ পণ্য খুঁজে দেব!\n\n📸 **কীভাবে কাজ করে:**\n• আপনার পছন্দের স্টাইলের ছবি আপলোড করুন\n• আমাদের এআই ছবি বিশ্লেষণ করবে\n• অনুরূপ পণ্যগুলি খুঁজে পাবেন\n• গোপনীয়তার জন্য ছবি অটো-ডিলিট\n\nচ্যাট বক্সে ছবি আপলোড করুন অথবা ক্যামেরা ব্যবহার করুন!`
+        : `Use Visual Search to find products similar to any image you upload!\n\n📸 **How it works:**\n• Upload a photo of clothing or style you like\n• Our AI analyzes the image for style, colors, and items\n• Get matching products from our catalog\n• Privacy-first: images auto-deleted after processing\n\n**Upload tips:**\n• Clear, well-lit photos work best\n• Focus on the clothing items\n• Multiple items in one photo are fine\n\nUpload an image in the chat or use your camera!`,
+      intent: 'visual_search',
+      confidence: 0.9,
+      actions: ['upload_image', 'camera_capture'],
+      suggestedQueries: language === 'bn' ? [
+        "ছবি আপলোড করুন",
+        "ক্যামেরা ব্যবহার করুন",
+        "ভিজুয়াল সার্চ উদাহরণ"
+      ] : [
+        "Upload image",
+        "Use camera",
+        "Visual search examples"
+      ],
+      language
+    };
+  }
+
+  async processVisualSearch(base64Image: string, context: ChatContext): Promise<ChatbotResponse> {
+    try {
+      const language = context.language || 'en';
+      
+      // Process visual search
+      const searchResult = await visualSearchEngine.processVisualSearch(base64Image);
+      
+      if (searchResult.products.length === 0) {
+        return {
+          message: language === 'bn'
+            ? `আপনার আপলোড করা ছবিতে কোনো মিলে যাওয়া পণ্য পাইনি। আরো স্পষ্ট ছবি বা ভিন্ন অ্যাঙ্গেল থেকে চেষ্টা করুন।`
+            : `I couldn't find matching products for your uploaded image. Try a clearer photo or different angle for better results.`,
+          intent: 'visual_search',
+          confidence: 0.6,
+          suggestedQueries: language === 'bn' ? [
+            "আরেকটি ছবি আপলোড করুন",
+            "জনপ্রিয় পণ্য দেখুন",
+            "সাহায্য পান"
+          ] : [
+            "Upload another image",
+            "Show popular products", 
+            "Get help"
+          ],
+          language
+        };
+      }
+      
+      const { products, confidence, searchMeta } = searchResult;
+      const detectedItems = searchMeta.detectedItems.join(', ');
+      const detectedColors = searchMeta.colors.join(', ');
+      
+      const productList = products.map(p => 
+        `• ${p.name} - $${p.price} ${p.stock > 0 ? (language === 'bn' ? '✅ স্টকে আছে' : '✅ In stock') : (language === 'bn' ? '❌ স্টকে নেই' : '❌ Out of stock')}`
+      ).join('\n');
+      
+      const message = language === 'bn'
+        ? `ভিজুয়াল সার্চ সফল! ${Math.round(confidence * 100)}% নির্ভুলতা\n\n🔍 **সনাক্তকৃত:** ${detectedItems}\n🎨 **রং:** ${detectedColors}\n👗 **স্টাইল:** ${searchMeta.style}\n\n**মিলে যাওয়া পণ্যসমূহ:**\n${productList}\n\nকোনটি ভার্চুয়াল ট্রাই-অন করতে চান?`
+        : `Visual Search Results! ${Math.round(confidence * 100)}% accuracy\n\n🔍 **Detected:** ${detectedItems}\n🎨 **Colors:** ${detectedColors}\n👗 **Style:** ${searchMeta.style}\n\n**Matching Products:**\n${productList}\n\nWant to try any of these virtually?`;
+      
+      return {
+        message,
+        intent: 'visual_search',
+        confidence,
+        productRecommendations: products,
+        actions: ['virtual_tryon', 'view_details', 'add_to_cart'],
+        suggestedQueries: language === 'bn' ? [
+          "ভার্চুয়াল ট্রাই-অন করুন",
+          "আরো বিস্তারিত দেখুন",
+          "অন্য ছবি সার্চ করুন"
+        ] : [
+          "Try virtual fitting",
+          "Show more details",
+          "Search another image"
+        ],
+        language
+      };
+      
+    } catch (error) {
+      console.error('Visual search error:', error);
+      const language = context.language || 'en';
+      
+      return {
+        message: language === 'bn'
+          ? "ভিজুয়াল সার্চ প্রক্রিয়াকরণে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন বা সাপোর্ট টিমের সাথে যোগাযোগ করুন।"
+          : "I'm having trouble processing the visual search. Please try again or contact our support team for assistance.",
+        intent: 'visual_search',
+        confidence: 0.5,
+        requiresEscalation: true,
+        language
+      };
+    }
+  }
+
+  async generateEnhancedRecommendations(userId: string, context: ChatContext): Promise<ChatbotResponse> {
+    try {
+      const language = context.language || 'en';
+      
+      if (!userId) {
+        // For non-authenticated users, return trending products
+        const trendingProducts = await storage.getProducts({ featured: true, limit: 5 });
+        
+        return {
+          message: language === 'bn'
+            ? `এই মুহূর্তের জনপ্রিয় পণ্যসমূহ:\n\n${trendingProducts.map(p => `• ${p.name} - $${p.price}`).join('\n')}\n\nব্যক্তিগত সুপারিশের জন্য সাইন ইন করুন!`
+            : `Trending products right now:\n\n${trendingProducts.map(p => `• ${p.name} - $${p.price}`).join('\n')}\n\nSign in for personalized recommendations!`,
+          intent: 'product_inquiry',
+          confidence: 0.7,
+          productRecommendations: trendingProducts,
+          language
+        };
+      }
+      
+      // Generate personalized recommendations
+      const recommendations = await personalizationEngine.generatePersonalizedRecommendations(userId, 6);
+      
+      if (recommendations.length === 0) {
+        return {
+          message: language === 'bn'
+            ? "আপনার জন্য ব্যক্তিগত সুপারিশ তৈরি করতে আরো তথ্য প্রয়োজন। কিছু পণ্য ব্রাউজ করুন বা কেনাকাটা করুন!"
+            : "I need more information to create personalized recommendations for you. Browse some products or make purchases to help me learn your style!",
+          intent: 'product_inquiry',
+          confidence: 0.6,
+          language
+        };
+      }
+      
+      // Group recommendations by category
+      const wardrobeGaps = recommendations.filter(r => r.category === 'wardrobe_gap');
+      const seasonal = recommendations.filter(r => r.category === 'seasonal');
+      const trending = recommendations.filter(r => r.category === 'trending');
+      
+      let message = language === 'bn'
+        ? `🎯 **আপনার জন্য ব্যক্তিগত সুপারিশ** (${Math.round(recommendations[0]?.confidence * 100 || 0)}% নির্ভুলতা)\n\n`
+        : `🎯 **Personalized Recommendations for You** (${Math.round(recommendations[0]?.confidence * 100 || 0)}% relevance)\n\n`;
+      
+      if (wardrobeGaps.length > 0) {
+        message += language === 'bn' ? `**👔 ওয়ার্ডরোব এসেনশিয়াল:**\n` : `**👔 Wardrobe Essentials:**\n`;
+        wardrobeGaps.slice(0, 2).forEach(rec => {
+          message += `• ${rec.product.name} - $${rec.product.price}\n  ${rec.reasoning[0]}\n`;
+        });
+        message += '\n';
+      }
+      
+      if (seasonal.length > 0) {
+        message += language === 'bn' ? `**🌟 সিজনাল পিক:**\n` : `**🌟 Seasonal Picks:**\n`;
+        seasonal.slice(0, 2).forEach(rec => {
+          message += `• ${rec.product.name} - $${rec.product.price}\n  ${rec.reasoning[0]}\n`;
+        });
+        message += '\n';
+      }
+      
+      if (trending.length > 0) {
+        message += language === 'bn' ? `**🔥 ট্রেন্ডিং:**\n` : `**🔥 Trending:**\n`;
+        trending.slice(0, 2).forEach(rec => {
+          message += `• ${rec.product.name} - $${rec.product.price}\n`;
+        });
+      }
+      
+      message += language === 'bn'
+        ? `\nকোনটি ভার্চুয়াল ট্রাই-অন করতে চান?`
+        : `\nWant to try any of these virtually?`;
+      
+      return {
+        message,
+        intent: 'product_inquiry',
+        confidence: 0.95,
+        productRecommendations: recommendations.map(r => r.product),
+        actions: ['virtual_tryon', 'view_details', 'wardrobe_analysis'],
+        suggestedQueries: language === 'bn' ? [
+          "ভার্চুয়াল ট্রাই-অন করুন",
+          "ওয়ার্ডরোব বিশ্লেষণ",
+          "আরো সুপারিশ দেখুন"
+        ] : [
+          "Try virtual fitting",
+          "Wardrobe analysis", 
+          "Show more recommendations"
+        ],
+        language
+      };
+      
+    } catch (error) {
+      console.error('Enhanced recommendations error:', error);
+      const language = context.language || 'en';
+      
+      return {
+        message: language === 'bn'
+          ? "ব্যক্তিগত সুপারিশ তৈরিতে সমস্যা হয়েছে। আমাদের জনপ্রিয় পণ্যগুলি দেখুন বা সাপোর্ট টিমের সাথে যোগাযোগ করুন।"
+          : "I'm having trouble generating personalized recommendations. Check out our popular products or contact our support team.",
+        intent: 'product_inquiry',
+        confidence: 0.6,
+        requiresEscalation: true,
+        language
+      };
+    }
+  }
+
   async getQuickReplies(intent: string): Promise<string[]> {
     const quickReplies: Record<string, string[]> = {
       'product_inquiry': [
@@ -1116,6 +1328,11 @@ Remember: You have access to live product data, stock levels, and user order inf
         "3D visualization",
         "AR try-on",
         "Recommendations"
+      ],
+      'visual_search': [
+        "Upload image",
+        "Camera search",
+        "Search tips"
       ],
       'general_query': [
         "AI features",
