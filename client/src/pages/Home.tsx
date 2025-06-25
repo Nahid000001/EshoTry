@@ -15,7 +15,11 @@ import {
   ShoppingBag, 
   Star,
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  Sparkles,
+  Smartphone,
+  BarChart3,
+  Box
 } from "lucide-react";
 
 export default function Home() {
@@ -229,22 +233,30 @@ export default function Home() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur">
-              <Box className="h-12 w-12 mx-auto mb-4" />
+              <div className="h-12 w-12 mx-auto mb-4 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+                <Box className="h-6 w-6 text-white" />
+              </div>
               <h3 className="font-semibold mb-2">3D Visualization</h3>
               <p className="text-sm opacity-80">Interactive outfit combinations with AI compatibility scoring</p>
             </div>
             <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur">
-              <Sparkles className="h-12 w-12 mx-auto mb-4" />
+              <div className="h-12 w-12 mx-auto mb-4 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-white" />
+              </div>
               <h3 className="font-semibold mb-2">Fabric Physics</h3>
               <p className="text-sm opacity-80">Realistic drape, stretch, and texture simulation</p>
             </div>
             <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur">
-              <Smartphone className="h-12 w-12 mx-auto mb-4" />
+              <div className="h-12 w-12 mx-auto mb-4 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                <Smartphone className="h-6 w-6 text-white" />
+              </div>
               <h3 className="font-semibold mb-2">Mobile AR</h3>
               <p className="text-sm opacity-80">Real-time camera-based augmented reality try-on</p>
             </div>
             <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur">
-              <TrendingUp className="h-12 w-12 mx-auto mb-4" />
+              <div className="h-12 w-12 mx-auto mb-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
               <h3 className="font-semibold mb-2">Smart Recommendations</h3>
               <p className="text-sm opacity-80">85%+ accuracy with seasonal trends and wardrobe analysis</p>
             </div>
@@ -265,7 +277,7 @@ export default function Home() {
                 Explore AI Features
               </Button>
             </Link>
-            <Link href="/wardrobe">
+            <Link href="/products">
               <Button size="lg" variant="outline" className="text-white border-white hover:bg-white hover:text-purple-600">
                 <BarChart3 className="mr-2 h-5 w-5" />
                 Analyze Wardrobe
