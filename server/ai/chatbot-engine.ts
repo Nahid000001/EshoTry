@@ -192,45 +192,117 @@ Remember: You have access to live product data, stock levels, and user order inf
   }
 
   private async analyzeIntent(message: string): Promise<string> {
-    const intents = {
-      product_inquiry: ['product', 'item', 'clothes', 'shirt', 'dress', 'shoes', 'buy', 'purchase', 'looking for'],
-      stock_check: ['available', 'stock', 'in stock', 'out of stock', 'availability', 'sizes available'],
-      virtual_tryon_help: ['try on', 'virtual', 'fitting', 'how does it look', 'upload photo'],
-      size_help: ['size', 'fit', 'sizing', 'measurements', 'too big', 'too small', 'what size'],
-      order_tracking: ['order', 'delivery', 'shipping', 'track', 'status', 'when will'],
-      ai_features_help: ['3d', 'ar', 'augmented reality', 'recommendations', 'wardrobe analysis'],
-      general_fashion_advice: ['style', 'outfit', 'fashion', 'what to wear', 'looks good', 'match']
-    };
-
     const messageLower = message.toLowerCase();
     
-    for (const [intent, keywords] of Object.entries(intents)) {
+    // Priority patterns for stock queries (check first)
+    if (messageLower.match(/\b(how many|total|count|number of)\b.*\b(item|product|stock|available|inventory)\b/)) {
+      return 'stock_check';
+    }
+    
+    if (messageLower.match(/\b(do you have|is.*available|any.*left|.*in stock|.*available|.*inventory)\b/)) {
+      return 'stock_check';
+    }
+    
+    if (messageLower.match(/\b(stock|inventory|available|availability)\b/)) {
+      return 'stock_check';
+    }
+    
+    // Enhanced intent recognition with better keyword matching
+    const intents = {
+      virtual_tryon_help: [
+        'try on', 'virtual', 'fitting', 'how does it look', 'upload photo',
+        'avatar', 'try it', 'see how', 'wear it', 'fit me'
+      ],
+      size_help: [
+        'size', 'fit', 'sizing', 'measurements', 'too big', 'too small', 
+        'what size', 'size guide', 'size chart', 'fit guide'
+      ],
+      order_tracking: [
+        'order', 'delivery', 'shipping', 'track', 'status', 'when will',
+        'my order', 'tracking', 'shipped', 'delivered'
+      ],
+      ai_features_help: [
+        '3d', 'ar', 'augmented reality', 'recommendations', 'wardrobe analysis',
+        'features', 'ai', 'artificial intelligence', 'smart', 'technology'
+      ],
+      product_inquiry: [
+        'product', 'item', 'clothes', 'clothing', 'shirt', 'dress', 'shoes', 
+        'buy', 'purchase', 'looking for', 'find', 'search', 'show me',
+        'pants', 'trouser', 'jacket', 'coat', 'top', 'bottom'
+      ],
+      general_fashion_advice: [
+        'style', 'outfit', 'fashion', 'what to wear', 'looks good', 'match',
+        'styling', 'coordinate', 'combination', 'trend'
+      ]
+    };
+
+    // Check for intent patterns with priority
+    const intentOrder = ['virtual_tryon_help', 'size_help', 'order_tracking', 'ai_features_help', 'product_inquiry', 'general_fashion_advice'];
+    
+    for (const intent of intentOrder) {
+      const keywords = intents[intent as keyof typeof intents];
       if (keywords.some(keyword => messageLower.includes(keyword))) {
         return intent;
       }
+    }
+    
+    // Product inquiry patterns
+    if (messageLower.match(/\b(find|search|looking for|want|need|show me)\b.*\b(product|item|clothes|clothing)\b/)) {
+      return 'product_inquiry';
     }
     
     return 'general_query';
   }
 
   private async extractEntities(message: string, intent: string): Promise<Record<string, any>> {
-    // Simple entity extraction - in production, use more sophisticated NLP
     const entities: Record<string, any> = {};
+    const messageLower = message.toLowerCase();
     
-    // Extract product categories
-    const categories = ['top', 'bottom', 'dress', 'shoes', 'accessories', 'jacket', 'pants', 'shirt'];
-    const foundCategory = categories.find(cat => message.toLowerCase().includes(cat));
-    if (foundCategory) entities.category = foundCategory;
+    // Enhanced category extraction with synonyms
+    const categoryMappings = {
+      'tops': ['top', 'shirt', 'blouse', 'tee', 't-shirt', 'tank', 'sweater', 'hoodie'],
+      'bottoms': ['bottom', 'pants', 'trouser', 'jean', 'short', 'skirt', 'legging'],
+      'dresses': ['dress', 'gown', 'frock'],
+      'shoes': ['shoe', 'boot', 'sneaker', 'heel', 'sandal', 'flat'],
+      'accessories': ['accessory', 'bag', 'hat', 'scarf', 'jewelry', 'belt', 'watch']
+    };
     
-    // Extract colors
-    const colors = ['red', 'blue', 'green', 'black', 'white', 'yellow', 'pink', 'purple'];
-    const foundColor = colors.find(color => message.toLowerCase().includes(color));
+    for (const [category, synonyms] of Object.entries(categoryMappings)) {
+      if (synonyms.some(synonym => messageLower.includes(synonym))) {
+        entities.category = category;
+        break;
+      }
+    }
+    
+    // Enhanced color extraction
+    const colors = ['red', 'blue', 'green', 'black', 'white', 'yellow', 'pink', 'purple', 'brown', 'grey', 'gray', 'orange', 'navy', 'beige', 'khaki'];
+    const foundColor = colors.find(color => messageLower.includes(color));
     if (foundColor) entities.color = foundColor;
     
-    // Extract sizes
-    const sizes = ['xs', 's', 'm', 'l', 'xl', 'xxl', 'small', 'medium', 'large'];
-    const foundSize = sizes.find(size => message.toLowerCase().includes(size));
+    // Enhanced size extraction
+    const sizes = ['xs', 's', 'm', 'l', 'xl', 'xxl', 'small', 'medium', 'large', 'extra small', 'extra large'];
+    const foundSize = sizes.find(size => messageLower.includes(size));
     if (foundSize) entities.size = foundSize;
+    
+    // Extract gender preferences
+    const genderTerms = {
+      'mens': ['men', 'male', 'guy', 'gentleman'],
+      'womens': ['women', 'female', 'lady', 'girl'],
+      'unisex': ['unisex', 'gender neutral']
+    };
+    
+    for (const [gender, terms] of Object.entries(genderTerms)) {
+      if (terms.some(term => messageLower.includes(term))) {
+        entities.gender = gender;
+        break;
+      }
+    }
+    
+    // Extract search terms for fuzzy matching
+    const searchTerms = message.match(/\b\w{2,}\b/g) || [];
+    entities.searchTerms = searchTerms.filter(term => 
+      !['the', 'and', 'for', 'with', 'how', 'what', 'where', 'when', 'why', 'can', 'you', 'help', 'show', 'find', 'are', 'have', 'any', 'all', 'many', 'total', 'items', 'products'].includes(term.toLowerCase())
+    );
     
     return entities;
   }
@@ -241,56 +313,77 @@ Remember: You have access to live product data, stock levels, and user order inf
     entities: Record<string, any>
   ): Promise<ChatbotResponse> {
     try {
-      // Search products based on entities
-      const searchFilters: any = {};
-      if (entities.category) {
-        // Map category to category ID (simplified)
-        const categoryMap: Record<string, number> = {
-          'top': 1, 'shirt': 1, 'blouse': 1,
-          'bottom': 2, 'pants': 2, 'jeans': 2,
-          'dress': 3,
-          'shoes': 4,
-          'accessories': 5
-        };
-        searchFilters.categoryId = categoryMap[entities.category];
-      }
-      
-      const products = await storage.getProducts({
-        ...searchFilters,
-        limit: 5
-      });
+      // Enhanced product search with fuzzy matching
+      const products = await this.searchProductsWithFuzzyMatching(entities, message);
       
       if (products.length === 0) {
+        // Try broader search with relaxed criteria
+        const fallbackProducts = await storage.getProducts({
+          featured: true,
+          limit: 5
+        });
+        
+        if (fallbackProducts.length === 0) {
+          return {
+            message: "I couldn't find any products matching your request. Our catalog might be updating. Would you like me to help you browse by category or contact our support team?",
+            intent: 'product_inquiry',
+            confidence: 0.6,
+            suggestedQueries: [
+              "Browse by category",
+              "Show featured items",
+              "Contact support"
+            ]
+          };
+        }
+        
         return {
-          message: "I couldn't find any products matching your request. Would you like me to show you our featured items or help you with a different search?",
+          message: `I couldn't find exact matches for "${message}", but here are some popular items you might like:\n\n${fallbackProducts.map(p => `• ${p.name} - $${p.price} ${p.stock > 0 ? '✅ In Stock' : '❌ Out of Stock'}`).join('\n')}\n\nTry refining your search or browse our categories. I can also help you with Virtual Try-On!`,
           intent: 'product_inquiry',
-          confidence: 0.8,
+          confidence: 0.7,
+          productRecommendations: fallbackProducts,
+          actions: ['refine_search', 'browse_categories', 'virtual_tryon'],
           suggestedQueries: [
-            "Show me featured products",
-            "What's trending now?",
-            "Help me find something specific"
+            "Refine my search",
+            "Browse categories",
+            "Try virtual fitting"
           ]
         };
       }
       
-      const productList = products.map(p => `• ${p.name} - $${p.price}`).join('\n');
+      const inStockProducts = products.filter(p => p.stock > 0);
+      const productList = products.map(p => 
+        `• ${p.name} - $${p.price} ${p.stock > 0 ? `✅ ${p.stock} in stock` : '❌ Out of stock'}`
+      ).join('\n');
+      
+      let responseMessage = `Found ${products.length} matching product${products.length > 1 ? 's' : ''}:\n\n${productList}\n\n`;
+      
+      if (inStockProducts.length > 0) {
+        responseMessage += `🎯 **${inStockProducts.length} available for immediate purchase**\n\n`;
+        responseMessage += "Want to see how any of these look on you? Try our Virtual Try-On feature!";
+      } else {
+        responseMessage += "All items are currently out of stock. Would you like me to suggest similar alternatives or notify you when they're back?";
+      }
       
       return {
-        message: `I found some great options for you:\n\n${productList}\n\nWould you like to try any of these virtually? I can help you with our AI-powered Virtual Try-On feature!`,
+        message: responseMessage,
         intent: 'product_inquiry',
         confidence: 0.9,
         productRecommendations: products,
-        actions: ['virtual_tryon', 'view_details'],
-        suggestedQueries: [
-          "Try on virtually",
-          "Show me more details",
+        actions: inStockProducts.length > 0 ? ['virtual_tryon', 'view_details', 'add_to_cart'] : ['find_alternatives', 'notify_restock'],
+        suggestedQueries: inStockProducts.length > 0 ? [
+          "Try virtual fitting",
+          "Show more details",
           "Find similar items"
+        ] : [
+          "Find alternatives",
+          "Notify when restocked",
+          "Browse similar categories"
         ]
       };
     } catch (error) {
       console.error('Product inquiry error:', error);
       return {
-        message: "I'm having trouble accessing our product database. Let me connect you with our support team to help you find what you're looking for.",
+        message: "I'm experiencing technical difficulties accessing our product catalog. Let me connect you with our support team to help you find what you're looking for.",
         intent: 'product_inquiry',
         confidence: 0.5,
         requiresEscalation: true
@@ -298,22 +391,274 @@ Remember: You have access to live product data, stock levels, and user order inf
     }
   }
 
+  private async searchProductsWithFuzzyMatching(entities: Record<string, any>, originalMessage: string): Promise<Product[]> {
+    // Get all products for comprehensive search
+    const allProducts = await storage.getProducts({ limit: 1000 });
+    let matchedProducts: Product[] = [];
+    
+    // Category-based filtering
+    let categoryFilteredProducts = allProducts;
+    if (entities.category) {
+      const categoryMap: Record<string, number> = {
+        'tops': 1,
+        'bottoms': 2, 
+        'dresses': 3,
+        'shoes': 4,
+        'accessories': 5
+      };
+      const categoryId = categoryMap[entities.category];
+      if (categoryId) {
+        categoryFilteredProducts = allProducts.filter(p => p.categoryId === categoryId);
+      }
+    }
+    
+    // If we have search terms, perform fuzzy matching
+    if (entities.searchTerms && entities.searchTerms.length > 0) {
+      const searchWords = entities.searchTerms.map((term: string) => term.toLowerCase());
+      
+      // Score each product based on relevance
+      const scoredProducts = categoryFilteredProducts.map(product => {
+        const productWords = product.name.toLowerCase().split(/\s+/);
+        let score = 0;
+        
+        // Check for exact matches (highest score)
+        searchWords.forEach(searchWord => {
+          productWords.forEach(productWord => {
+            if (productWord === searchWord) {
+              score += 10;
+            } else if (productWord.includes(searchWord) || searchWord.includes(productWord)) {
+              score += 8;
+            } else if (searchWord.length >= 3 && this.calculateLevenshteinDistance(searchWord, productWord) <= 1) {
+              score += 6;
+            } else if (searchWord.length >= 4 && this.calculateLevenshteinDistance(searchWord, productWord) <= 2) {
+              score += 4;
+            }
+          });
+        });
+        
+        // Bonus for color matches
+        if (entities.color && product.name.toLowerCase().includes(entities.color.toLowerCase())) {
+          score += 5;
+        }
+        
+        return { product, score };
+      });
+      
+      // Filter products with any score and sort by relevance
+      matchedProducts = scoredProducts
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(item => item.product)
+        .slice(0, 8);
+    } else {
+      // No search terms, return category filtered or featured products
+      matchedProducts = categoryFilteredProducts.slice(0, 8);
+    }
+    
+    return matchedProducts;
+  }
+
+  private calculateLevenshteinDistance(str1: string, str2: string): number {
+    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+    
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+    
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + indicator
+        );
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
+  }
+
   private async handleStockCheck(
     message: string,
     context: ChatContext,
     entities: Record<string, any>
   ): Promise<ChatbotResponse> {
-    // In a real implementation, you'd check actual stock levels
-    return {
-      message: "I can check stock availability for specific items. Could you tell me which product you're interested in? You can share the product name or browse our catalog and I'll give you real-time availability including size options.",
-      intent: 'stock_check',
-      confidence: 0.8,
-      suggestedQueries: [
-        "Check if Classic White Shirt is available",
-        "What sizes are available for this item?",
-        "Browse products"
-      ]
-    };
+    try {
+      const messageLower = message.toLowerCase();
+      
+      // Check for general stock inquiry
+      if (messageLower.includes('how many') || messageLower.includes('total') || messageLower.includes('overall stock')) {
+        return await this.handleGeneralStockInquiry();
+      }
+      
+      // Specific product stock check
+      if (entities.searchTerms && entities.searchTerms.length > 0) {
+        const products = await this.searchProductsWithFuzzyMatching(entities, message);
+        
+        if (products.length === 0) {
+          return {
+            message: "I couldn't find that specific item. Could you provide more details about the product you're looking for? I can check stock for any item in our catalog.",
+            intent: 'stock_check',
+            confidence: 0.7,
+            suggestedQueries: [
+              "Show me all available items",
+              "Browse by category",
+              "Check featured products"
+            ]
+          };
+        }
+        
+        if (products.length === 1) {
+          const product = products[0];
+          return {
+            message: `📦 **${product.name}** - $${product.price}\n\n${product.stock > 0 ? `✅ **${product.stock} units in stock**` : '❌ **Currently out of stock**'}\n\n${product.stock > 0 ? 'Available for immediate purchase and Virtual Try-On!' : 'Would you like me to suggest similar alternatives or notify you when it\'s back in stock?'}`,
+            intent: 'stock_check',
+            confidence: 0.95,
+            productRecommendations: [product],
+            actions: product.stock > 0 ? ['virtual_tryon', 'add_to_cart', 'view_details'] : ['find_alternatives', 'notify_restock'],
+            suggestedQueries: product.stock > 0 ? [
+              "Try it on virtually",
+              "Add to cart",
+              "Show more details"
+            ] : [
+              "Find similar items",
+              "Notify when available",
+              "Browse alternatives"
+            ]
+          };
+        }
+        
+        // Multiple products found
+        const inStockCount = products.filter(p => p.stock > 0).length;
+        const productList = products.slice(0, 5).map(p => 
+          `• ${p.name} - ${p.stock > 0 ? `✅ ${p.stock} in stock` : '❌ Out of stock'}`
+        ).join('\n');
+        
+        return {
+          message: `Found ${products.length} matching items:\n\n${productList}\n\n📊 **${inStockCount} of ${products.length} currently available**\n\nWhich specific item would you like to check, or would you like to try any available items virtually?`,
+          intent: 'stock_check',
+          confidence: 0.9,
+          productRecommendations: products.filter(p => p.stock > 0).slice(0, 3),
+          actions: ['virtual_tryon', 'specific_check', 'browse_available'],
+          suggestedQueries: [
+            "Check specific item",
+            "Try virtual fitting",
+            "Show only available items"
+          ]
+        };
+      }
+      
+      // Fallback for vague stock requests
+      return {
+        message: "I can check real-time stock for any specific item! Just tell me:\n\n• Product name (even partial names work)\n• Category you're interested in\n• Or browse our catalog\n\nI'll give you exact availability including sizes and variants. What would you like to check?",
+        intent: 'stock_check',
+        confidence: 0.8,
+        suggestedQueries: [
+          "Check all available items",
+          "Browse by category",
+          "Search specific product"
+        ]
+      };
+      
+    } catch (error) {
+      console.error('Stock check error:', error);
+      return {
+        message: "I'm having trouble accessing our inventory system. Let me connect you with our support team for immediate stock information.",
+        intent: 'stock_check',
+        confidence: 0.5,
+        requiresEscalation: true
+      };
+    }
+  }
+
+  private async handleGeneralStockInquiry(): Promise<ChatbotResponse> {
+    try {
+      // Get comprehensive stock data
+      const allProducts = await storage.getProducts({ limit: 1000 });
+      const categories = await storage.getCategories();
+      
+      const totalProducts = allProducts.length;
+      const inStockProducts = allProducts.filter(p => p.stock > 0);
+      const totalStock = allProducts.reduce((sum, p) => sum + p.stock, 0);
+      
+      // If no products exist, return appropriate message
+      if (totalProducts === 0) {
+        return {
+          message: "Our catalog is currently being updated. Please check back soon or contact our support team for assistance.",
+          intent: 'stock_check',
+          confidence: 0.9,
+          requiresEscalation: true,
+          suggestedQueries: [
+            "Contact support",
+            "Check back later",
+            "Browse featured items"
+          ]
+        };
+      }
+      
+      // Category breakdown
+      const categoryStats = categories.map(cat => {
+        const categoryProducts = allProducts.filter(p => p.categoryId === cat.id);
+        const categoryInStock = categoryProducts.filter(p => p.stock > 0);
+        return {
+          name: cat.name,
+          total: categoryProducts.length,
+          available: categoryInStock.length,
+          stock: categoryProducts.reduce((sum, p) => sum + p.stock, 0)
+        };
+      }).filter(stat => stat.total > 0);
+      
+      // Featured products
+      const featuredProducts = allProducts.filter(p => p.featured && p.stock > 0).slice(0, 3);
+      
+      let responseMessage = `Current Inventory Overview\n\n`;
+      responseMessage += `${totalProducts} total products (${inStockProducts.length} available)\n`;
+      responseMessage += `${totalStock} total units in stock\n\n`;
+      
+      if (categoryStats.length > 0) {
+        responseMessage += `By Category:\n`;
+        categoryStats.forEach(stat => {
+          responseMessage += `• ${stat.name}: ${stat.available}/${stat.total} available (${stat.stock} units)\n`;
+        });
+        responseMessage += '\n';
+      }
+      
+      if (featuredProducts.length > 0) {
+        responseMessage += `Featured Items Currently Available:\n`;
+        featuredProducts.forEach(product => {
+          responseMessage += `• ${product.name} - $${product.price} (${product.stock} in stock)\n`;
+        });
+        responseMessage += '\n';
+      }
+      
+      responseMessage += `Want to explore our catalog or try items virtually?`;
+      
+      return {
+        message: responseMessage,
+        intent: 'stock_check',
+        confidence: 0.95,
+        productRecommendations: featuredProducts,
+        actions: ['browse_categories', 'virtual_tryon', 'view_featured'],
+        suggestedQueries: [
+          "Browse categories",
+          "Show featured items",
+          "Try virtual fitting"
+        ]
+      };
+      
+    } catch (error) {
+      console.error('General stock inquiry error:', error);
+      return {
+        message: "I'm having trouble generating the complete inventory report. Let me get you specific stock information instead. What particular items or categories are you interested in?",
+        intent: 'stock_check',
+        confidence: 0.6,
+        suggestedQueries: [
+          "Check specific category",
+          "Search for item",
+          "Contact support"
+        ]
+      };
+    }
   }
 
   private async handleVirtualTryOnHelp(
@@ -492,26 +837,28 @@ Remember: You have access to live product data, stock levels, and user order inf
     context: ChatContext
   ): Promise<ChatbotResponse> {
     try {
-      // Use OpenAI for general queries with platform context
+      // Use OpenAI for general queries with platform context (without JSON format for older models)
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
-          { role: "system", content: this.systemPrompt },
+          { role: "system", content: this.systemPrompt + "\n\nProvide helpful, specific responses about the EshoTry platform. Be concise but informative." },
           ...context.conversationHistory.slice(-5), // Last 5 messages for context
           { role: "user", content: message }
         ],
-        max_tokens: 500,
-        temperature: 0.7,
-        response_format: { type: "json_object" }
+        max_tokens: 400,
+        temperature: 0.7
       });
 
-      const response = JSON.parse(completion.choices[0].message.content || '{}');
+      const responseContent = completion.choices[0].message.content || '';
+      
+      // Extract confidence from response length and content quality
+      const confidence = Math.min(0.9, 0.6 + (responseContent.length / 1000));
       
       return {
-        message: response.message || "I understand you're asking about our platform. Could you be more specific about what you'd like to know? I can help with products, AI features, orders, or general fashion advice.",
+        message: responseContent || "I understand you're asking about our platform. Could you be more specific about what you'd like to know? I can help with products, AI features, orders, or general fashion advice.",
         intent: 'general_query',
-        confidence: response.confidence || 0.7,
-        suggestedQueries: response.suggestedQueries || [
+        confidence: confidence,
+        suggestedQueries: [
           "Tell me about Virtual Try-On",
           "Help me find products",
           "Explain AI features"
@@ -520,13 +867,13 @@ Remember: You have access to live product data, stock levels, and user order inf
     } catch (error) {
       console.error('OpenAI API error:', error);
       return {
-        message: "I'm here to help with your EshoTry experience! I can assist with:\n\n• Product search and recommendations\n• Virtual Try-On and AI features\n• Sizing and fit guidance\n• Order tracking and support\n• Fashion advice and styling\n\nWhat would you like to know more about?",
+        message: "I'm here to help with your EshoTry experience! I can assist with:\n\n• **Product Search**: Find items with partial names, colors, sizes\n• **Stock Information**: Real-time availability and inventory\n• **Virtual Try-On**: Realistic fitting with AI technology\n• **AI Features**: 3D visualization, AR, smart recommendations\n• **Size Guidance**: Perfect fit recommendations\n• **Order Support**: Tracking and delivery information\n• **Fashion Advice**: Styling tips and outfit suggestions\n\nWhat would you like to explore?",
         intent: 'general_query',
-        confidence: 0.6,
+        confidence: 0.8,
         suggestedQueries: [
-          "Show me AI features",
-          "Help me find products",
-          "Size guidance"
+          "Check stock availability",
+          "Find products",
+          "Try Virtual Try-On"
         ]
       };
     }
