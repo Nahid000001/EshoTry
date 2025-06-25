@@ -1,0 +1,224 @@
+# EshoTry AI Fashion Platform - Production Docker Compose
+# Optimized for scalability and high availability
+
+version: '3.8'
+
+services:
+  # Application instances (horizontal scaling)
+  app1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - REPLIT_DOMAINS=${REPLIT_DOMAINS}
+      - TENSORFLOW_BACKEND=cpu
+      - MAX_CONCURRENT_PROCESSING=10
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+    networks:
+      - app-network
+    depends_on:
+      - redis
+      - postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  app2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - REPLIT_DOMAINS=${REPLIT_DOMAINS}
+      - TENSORFLOW_BACKEND=cpu
+      - MAX_CONCURRENT_PROCESSING=10
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+    networks:
+      - app-network
+    depends_on:
+      - redis
+      - postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Nginx load balancer and reverse proxy
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - uploads:/usr/share/nginx/html/uploads:ro
+      - ssl_certs:/etc/ssl/certs:ro
+    networks:
+      - app-network
+    depends_on:
+      - app1
+      - app2
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+
+  # Redis for session storage and caching
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.3'
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-eshotry}
+      - POSTGRES_USER=${POSTGRES_USER:-eshotry}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # AI processing worker (dedicated GPU instance)
+  ai-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai-worker
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - TENSORFLOW_BACKEND=gpu
+      - CUDA_VISIBLE_DEVICES=0
+      - AI_WORKER_MODE=true
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ai_models:/app/models
+      - uploads:/app/uploads
+    networks:
+      - app-network
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Monitoring and logging
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - app-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    networks:
+      - app-network
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads:
+    driver: local
+  logs:
+    driver: local
+  ai_models:
+    driver: local
+  ssl_certs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Secrets for production deployment
+secrets:
+  database_url:
+    external: true
+  session_secret:
+    external: true
+  ssl_certificate:
+    external: true
+  ssl_private_key:
+    external: true
