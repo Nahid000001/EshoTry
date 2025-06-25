@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
+import { Chatbot } from "@/components/Chatbot";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
@@ -32,6 +33,9 @@ function Router() {
         {/* Fallback to 404 */}
         <Route component={NotFound} />
       </Switch>
+      
+      {/* AI Chatbot - Available on all pages */}
+      <Chatbot />
     </div>
   );
 }
