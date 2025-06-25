@@ -23,9 +23,9 @@ export default function Products() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState({
     search: '',
-    categoryId: '',
+    categoryId: 'all',
     sortBy: 'newest',
-    priceRange: '',
+    priceRange: 'any',
   });
 
   // Parse URL parameters
@@ -34,7 +34,7 @@ export default function Products() {
     setFilters(prev => ({
       ...prev,
       search: searchParams.get('search') || '',
-      categoryId: searchParams.get('category') || '',
+      categoryId: searchParams.get('category') || 'all',
     }));
   }, [location]);
 
@@ -61,7 +61,7 @@ export default function Products() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filters.search) params.append('search', filters.search);
-      if (filters.categoryId) {
+      if (filters.categoryId && filters.categoryId !== 'all') {
         const category = categories.find(c => c.slug === filters.categoryId);
         if (category) params.append('categoryId', category.id.toString());
       }
@@ -70,7 +70,7 @@ export default function Products() {
       if (!res.ok) throw new Error("Failed to fetch products");
       return res.json();
     },
-    enabled: categories.length > 0 || !filters.categoryId,
+    enabled: categories.length > 0 || filters.categoryId === 'all',
   });
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -81,13 +81,13 @@ export default function Products() {
   const clearFilters = () => {
     setFilters({
       search: '',
-      categoryId: '',
+      categoryId: 'all',
       sortBy: 'newest',
-      priceRange: '',
+      priceRange: 'any',
     });
   };
 
-  const hasActiveFilters = filters.search || filters.categoryId || filters.priceRange;
+  const hasActiveFilters = filters.search || (filters.categoryId !== 'all') || (filters.priceRange !== 'any');
 
   const sortedProducts = [...products].sort((a, b) => {
     switch (filters.sortBy) {
@@ -163,7 +163,7 @@ export default function Products() {
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.slug}>
                           {category.name}
@@ -184,7 +184,7 @@ export default function Products() {
                       <SelectValue placeholder="Any Price" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any Price</SelectItem>
+                      <SelectItem value="any">Any Price</SelectItem>
                       <SelectItem value="0-50">Under $50</SelectItem>
                       <SelectItem value="50-100">$50 - $100</SelectItem>
                       <SelectItem value="100-200">$100 - $200</SelectItem>
@@ -212,7 +212,7 @@ export default function Products() {
                         Search: {filters.search}
                       </Badge>
                     )}
-                    {filters.categoryId && (
+                    {filters.categoryId !== 'all' && (
                       <Badge variant="secondary">
                         Category: {categories.find(c => c.slug === filters.categoryId)?.name}
                       </Badge>
